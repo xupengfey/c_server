@@ -59,7 +59,7 @@ static uv_tcp_t tcp_server;
 static lua_State* L;
 static uv_mutex_t lua_mutex;
 
-static std::deque<std::pair<int, char*>> rpc_queue;
+static std::deque<std::pair<int, char*> > rpc_queue;
 static uv_mutex_t rpc_queue_mutex;
 
 static std::deque<char*> db_queue;
