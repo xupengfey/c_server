@@ -72,13 +72,21 @@
   <ItemGroup>
     <ClCompile Include="src\capi.cpp" />
     <ClCompile Include="src\game.cpp" />
+    <ClCompile Include="src\lua_cjson\fpconv.c" />
+    <ClCompile Include="src\lua_cjson\lua_cjson.c" />
+    <ClCompile Include="src\lua_cjson\strbuf.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\game.h" />
     <ClInclude Include="include\lua\lauxlib.h" />
     <ClInclude Include="include\lua\lua.h" />
     <ClInclude Include="include\lua\lua.hpp" />
     <ClInclude Include="include\lua\luaconf.h" />
     <ClInclude Include="include\lua\lualib.h" />
+    <ClInclude Include="include\lua_cjson\cjson.h" />
+    <ClInclude Include="include\lua_cjson\cjson.hpp" />
+    <ClInclude Include="include\lua_cjson\fpconv.h" />
+    <ClInclude Include="include\lua_cjson\strbuf.h" />
     <ClInclude Include="include\uv\uv-private\stdint-msvc2008.h" />
     <ClInclude Include="include\uv\uv-private\tree.h" />
     <ClInclude Include="include\uv\uv-private\uv-bsd.h" />
@@ -88,7 +96,6 @@
     <ClInclude Include="include\uv\uv-private\uv-unix.h" />
     <ClInclude Include="include\uv\uv-private\uv-win.h" />
     <ClInclude Include="include\uv\uv.h" />
-    <ClInclude Include="src\game.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
