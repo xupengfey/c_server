@@ -3,6 +3,9 @@
   <ItemGroup>
     <ClCompile Include="src\capi.cpp" />
     <ClCompile Include="src\game.cpp" />
+    <ClCompile Include="src\lua_cjson\fpconv.c" />
+    <ClCompile Include="src\lua_cjson\lua_cjson.c" />
+    <ClCompile Include="src\lua_cjson\strbuf.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\lua\lua.hpp" />
