@@ -1,66 +1,24 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="src\capi.cpp" />
-    <ClCompile Include="src\game.cpp" />
-    <ClCompile Include="src\lua_cjson\fpconv.c" />
-    <ClCompile Include="src\lua_cjson\lua_cjson.c" />
-    <ClCompile Include="src\lua_cjson\strbuf.c" />
+    <ClCompile Include="src\lua_cjson\lua_cjson.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lua_cjson\fpconv.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lua_cjson\strbuf.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\game.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\capi.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\lua\lua.hpp" />
     <ClInclude Include="include\game.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\lua\lauxlib.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\lua\lua.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\lua\luaconf.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\lua\lualib.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\uv\uv.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\uv\uv-private\stdint-msvc2008.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\uv\uv-private\tree.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\uv\uv-private\uv-bsd.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\uv\uv-private\uv-darwin.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\uv\uv-private\uv-linux.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\uv\uv-private\uv-sunos.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\uv\uv-private\uv-unix.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\uv\uv-private\uv-win.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\lua_cjson\fpconv.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\lua_cjson\strbuf.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\lua_cjson\cjson.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\lua_cjson\cjson.h">
       <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>

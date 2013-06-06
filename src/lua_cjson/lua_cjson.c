@@ -38,7 +38,7 @@
 
 
 
-#include <lua_cjson/cjson.h>
+#include <cjson/cjson.h>
 
 
 
