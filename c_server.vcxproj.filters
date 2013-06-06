@@ -21,6 +21,15 @@
     <ClInclude Include="include\game.h">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="include\cjson\cjson.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\cjson\fpconv.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\cjson\strbuf.h">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="src">

@@ -78,6 +78,9 @@
     <ClCompile Include="src\strbuf.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\cjson\cjson.h" />
+    <ClInclude Include="include\cjson\fpconv.h" />
+    <ClInclude Include="include\cjson\strbuf.h" />
     <ClInclude Include="include\game.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
