@@ -72,10 +72,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\capi.cpp" />
+    <ClCompile Include="src\fpconv.cpp" />
     <ClCompile Include="src\game.cpp" />
-    <ClCompile Include="src\lua_cjson\fpconv.c" />
-    <ClCompile Include="src\lua_cjson\lua_cjson.c" />
-    <ClCompile Include="src\lua_cjson\strbuf.c" />
+    <ClCompile Include="src\lua_cjson.cpp" />
+    <ClCompile Include="src\strbuf.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\game.h" />

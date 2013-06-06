@@ -5,9 +5,10 @@
 #include <string.h>
 #include <math.h>
 #include <limits.h>
+extern "C" {
 #include <lua/lua.h>
 #include <lua/lauxlib.h>
-
+}
 #include <cjson/strbuf.h>
 #include <cjson/fpconv.h>
 

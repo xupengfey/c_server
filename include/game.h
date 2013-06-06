@@ -20,13 +20,13 @@
 
 extern "C" {
 	#include <mysql.h>
-	#include "cjson/cjson.h"
 	#include "lua/lua.h"
 	#include "lua/lualib.h"
 	#include "lua/lauxlib.h"
-	int json_decode(lua_State *l);
-	int luaopen_cjson(lua_State *l);
 }
+#include "cjson/cjson.h"
+int json_decode(lua_State *l);
+int luaopen_cjson(lua_State *l);
 
 
 #ifdef WIN32
