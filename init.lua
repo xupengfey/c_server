@@ -100,7 +100,7 @@ print("C_connectmysql",C_connectmysql("192.168.0.31","root","31^FishTest31@","te
 -- local sql = "insert test (json) values ('"..C_escapedStr(str).."')"
 -- C_query(sql)
 -- local sql = "select * from test"
-local sql = "select NULL"
+local sql = "select * from test"
 C_query(sql)
 
 function L_decode( str )

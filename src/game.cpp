@@ -370,9 +370,13 @@ void dbHandler(uv_work_t *req) {
 				} else if (IS_NUM(fields[i].type)) {
 					lua_pushnumber(L, strtod(row[i],NULL));
 				} else if (fields[i].type>=MYSQL_TYPE_TINY_BLOB && fields[i].type <= MYSQL_TYPE_BLOB) {
-					lua_getglobal(L,lua_cmd_type_name[L_decode]);
-					lua_pushstring(L,row[i]);
-					lua_pcall(L,1,1,1);
+					if (row[i] == NULL || strlen((char*)row[i]) == 0) {
+						lua_pushnil(L);
+					} else {
+						lua_getglobal(L,lua_cmd_type_name[L_decode]);
+						lua_pushstring(L,row[i]);
+						lua_pcall(L,1,1,1);
+					}
 				} else {
 					lua_pushstring(L,row[i]);
 				}
@@ -528,7 +532,7 @@ int main(int argc, char** argv) {
 	if(luaL_dofile(L,file) == 1)
 	{
 		printf(lua_tostring(L,-1),"%s\n");
-		return 1;
+		//return 1;
 	}
 	lua_pop(L,lua_gettop(L));
 	uv_mutex_unlock(&lua_mutex);
