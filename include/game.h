@@ -24,11 +24,8 @@ extern "C" {
 	#include "lua/lua.h"
 	#include "lua/lualib.h"
 	#include "lua/lauxlib.h"
-
-	//int json_decode(lua_State *l);
-	
 }
-//int luaopen_cjson(lua_State *l);
+
 
 
 
@@ -50,7 +47,8 @@ typedef enum {
 	L_onClose,
 	L_onCloseNC,
     L_onMysql,
-	L_onCloseMysql
+	L_onCloseMysql,
+	L_onCommand
 } lua_cmd_type_t;
 
 static const char *lua_cmd_type_name[] = {
@@ -64,6 +62,7 @@ static const char *lua_cmd_type_name[] = {
 	"L_onCloseNC",
     "L_onMysql",
 	"L_onCloseMysql",
+	"L_onCommand",
     NULL
 };
 
@@ -80,30 +79,6 @@ typedef struct _Sock {
 
 }Sock,*PSock;
 
-//static MYSQL* pmysql;
-//static lua_State* L;
-//static uv_mutex_t lua_mutex;
-//
-//static std::deque<std::pair<int, char*> > rpc_queue;
-//static uv_mutex_t rpc_queue_mutex;
-//
-//std::deque<char*> db_queue;
-//static uv_mutex_t db_queue_mutex;
-//
-//
-//static std::map<uv_tcp_t*, Sock*> client_map;
-//static std::map<int, Sock*> c_sockid_map;
-//static uv_rwlock_t client_map_rwlock;
-//static int c_sock_id;
-//static uv_mutex_t c_sock_id_mutex;
-//
-//static std::map<uv_tcp_t*, Sock*> nc_map;
-//static std::map<int, Sock*> nc_sockid_map;
-//static uv_rwlock_t nc_map_rwlock;
-//static int nc_sock_id;
-//static uv_mutex_t nc_sock_id_mutex;
-
-//MYSQL mysql;
 
 
 uv_buf_t alloc_buffer(uv_handle_t* handle, size_t suggested_size);

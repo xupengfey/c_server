@@ -73,9 +73,9 @@ function L_onConnectedNC( sockId)
 	local t = {"funName","aaaaaa","bbbbbbbbbb"}
 	local str = cjson.encode(t)
 	print(str)
-	C_senddata(sockId,2,str)
-	C_senddata(sockId,2,str)
-	C_senddata(sockId,2,str)
+	-- C_senddata(sockId,2,str)
+	-- C_senddata(sockId,2,str)
+	-- C_senddata(sockId,2,str)
 end
 
 function L_onMysql( ret )
@@ -88,6 +88,8 @@ C_listen( 7000)
 -- print("lua start")
 
 --C_connect("192.168.0.13",8080)
+
+C_senddata(1,2,"aaaaaaa")
 
 print("C_connectmysql",C_connectmysql("192.168.0.31","root","31^FishTest31@","test",3306))
 --_query("show databases")
@@ -110,3 +112,9 @@ function L_decode( str )
 	-- return cjson.decode(str)
 end
 
+
+function L_onCommand( str )
+	print("L_onCommand",str)
+	local func = loadstring(str)
+	func()
+end

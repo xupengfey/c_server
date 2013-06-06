@@ -70,15 +70,11 @@ void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 
 	if (type == 1) {
 		uv_rwlock_rdlock(&client_map_rwlock);
-		if (client_map.find(tcp) != client_map.end()) {
-			sock = client_map[tcp];
-		}
+		sock = client_map[tcp];
 		uv_rwlock_rdunlock(&client_map_rwlock);
 	} else {
 		uv_rwlock_rdlock(&nc_map_rwlock);
-		if (nc_map.find(tcp) != nc_map.end()) {
-			sock = nc_map[tcp];
-		}
+		sock = nc_map[tcp];
 		uv_rwlock_rdunlock(&nc_map_rwlock);
 	}
 	if (sock == NULL) {
@@ -217,15 +213,11 @@ void senddata(int sock_id, int type, const char* str){
 	Sock* sock = NULL;
 	if (type == 1) {
 		uv_rwlock_rdlock(&client_map_rwlock);
-		if (c_sockid_map.find(sock_id) != c_sockid_map.end()) {
-			sock = c_sockid_map[sock_id];
-		}
+		sock = c_sockid_map[sock_id];
 		uv_rwlock_rdunlock(&client_map_rwlock);
 	} else {
 		uv_rwlock_rdlock(&nc_map_rwlock);
-		if (nc_sockid_map.find(sock_id) != nc_sockid_map.end()) {
-			sock = nc_sockid_map[sock_id];
-		}
+		sock = nc_sockid_map[sock_id];
 		uv_rwlock_rdunlock(&nc_map_rwlock);
 	}
 
@@ -306,6 +298,23 @@ void rpcHandler(uv_work_t *req) {
 	
 	}
 
+
+}
+
+void cmdHandler(uv_work_t *req) {
+	char buf[128];
+	while(fgets(buf, 128, stdin)) {
+		uv_mutex_lock(&lua_mutex);
+		lua_getglobal(L,lua_cmd_type_name[L_onError]);
+		lua_getglobal(L,lua_cmd_type_name[L_onCommand]);
+		lua_pushstring(L,buf);
+		if (lua_pcall(L,1,0,1) == 0) {
+			lua_pop(L,1);
+		} else {
+			lua_pop(L,2);
+		}
+		uv_mutex_unlock(&lua_mutex);
+	}
 
 }
 
@@ -577,6 +586,10 @@ int main(int argc, char** argv) {
 	// db 线程
 	uv_work_t req_db;
 	uv_queue_work(uv_default_loop(), &req_db, dbHandler, NULL);
+
+	// cmd 线程
+	uv_work_t req_cmd;
+	uv_queue_work(uv_default_loop(), &req_cmd, cmdHandler, NULL);
 
     return uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 }
