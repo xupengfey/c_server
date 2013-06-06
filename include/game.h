@@ -11,17 +11,22 @@
 #pragma comment(lib, "Iphlpapi.lib")
 #endif
 
-#include <lua/lua.hpp>
+
 #include <deque>
 #include <map>
 #include <stdio.h>
 #include <assert.h>
 #include <uv/uv.h>
-#include <cjson/cjson.hpp>
-extern "C" {
-#include <mysql.h>
-}
 
+extern "C" {
+	#include <mysql.h>
+	#include "cjson/cjson.h"
+	#include "lua/lua.h"
+	#include "lua/lualib.h"
+	#include "lua/lauxlib.h"
+	int json_decode(lua_State *l);
+	int luaopen_cjson(lua_State *l);
+}
 
 
 #ifdef WIN32
@@ -66,9 +71,7 @@ typedef struct _Sock {
 	int read_status; // 0包头 5个字节 | 1 内容 | 2 finish
 	int lenth;
 	int readed;
-	bool encripted;
-	bool compressed;
-	int protocol; // 0 json 1 amf3
+	char protocol; // 0 json 1 amf3    01 加密类型 23 压缩类型 4567协议类型
 	char* buff;
 	uv_tcp_t* handle;
 
@@ -115,6 +118,7 @@ void call_luarpc(int type, char* json_cmd);
 
 void registerAPI(lua_State* L);
 
-
+int json_decode(lua_State *l);
+int luaopen_cjson(lua_State *l);
 
 #endif

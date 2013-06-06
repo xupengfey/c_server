@@ -107,7 +107,7 @@ void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 					}
 
 					sock->readed = 0;
-					sock->buff = (char*)malloc(sock->lenth+1); // '\0
+					sock->buff = (char*)malloc(sock->lenth+1); // '\0;
 					sock->read_status = 1;
 					break;
 				} 
@@ -117,7 +117,7 @@ void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 				return;
 			}
 		case 1:
-			len = min(sock->lenth-sock->readed, nread-i);
+			len = sock->lenth-sock->readed<(nread-i)?sock->lenth-sock->readed:(nread-i);
 			if (len > 0) {
 				memcpy(sock->buff+sock->readed, buf.base+i, len);
 				sock->readed += len;
@@ -131,25 +131,23 @@ void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 				return;
 			}
 		case 2:
-			//int first = (*(sock->buff))[0];
-			//if (first & (1<<7) == (1<<7)) {
-			//	sock->encripted = true;	
-			//} else {
-			//	sock->encripted = false;
-			//}
-			//if (first & (1<<6) == (1<<6)) {
-			//	sock->compressed = true;	
-			//} else {
-			//	sock->compressed = false;
-			//}
-			//sock->protocol = first % (1<<6);
-
-			//if (sock->lenth < 1000) {
-			//	printf("full package %s\n",sock->buff);
-			//}
-
+			sock->protocol = sock->buff[0];
 			sock->read_status = 0;
 			sock->readed = 0;
+			char protocol = sock->buff[0];
+			// 根据protocol生成cmd
+			if (sock->protocol & (1<<6)) {
+				// 解密
+			}
+
+			if (sock->protocol & (1<<4)) {
+				// 解压缩
+			}
+
+			if (sock->protocol & 1) {
+				// amf协议
+			}
+
 			char *cmd = (char*)malloc(sock->lenth);
 			memcpy(cmd, sock->buff+1, sock->lenth);
 			free(sock->buff);
@@ -169,11 +167,35 @@ DEL:
 			client_map.erase(sock->handle);
 			c_sockid_map.erase(sock->sock_id);
 			uv_rwlock_wrunlock(&client_map_rwlock);
+
+			uv_mutex_lock(&lua_mutex);
+			lua_getglobal(L,lua_cmd_type_name[L_onError]);
+			lua_getglobal(L,lua_cmd_type_name[L_onClose]);
+			lua_pushinteger(L,sock->sock_id);
+			if (lua_pcall(L,0,0,1) == 0) {
+				lua_pop(L,1);
+			} else {
+				lua_pop(L,2);
+			}
+			uv_mutex_unlock(&lua_mutex);
+
 		} else {
 			uv_rwlock_wrunlock(&nc_map_rwlock);
 			nc_map.erase(sock->handle);
 			nc_sockid_map.erase(sock->sock_id);
 			uv_rwlock_wrunlock(&nc_map_rwlock);
+
+			uv_mutex_lock(&lua_mutex);
+			lua_getglobal(L,lua_cmd_type_name[L_onError]);
+			lua_getglobal(L,lua_cmd_type_name[L_onCloseNC]);
+			lua_pushinteger(L,sock->sock_id);
+			if (lua_pcall(L,0,0,1) == 0) {
+				lua_pop(L,1);
+			} else {
+				lua_pop(L,2);
+			}
+			uv_mutex_unlock(&lua_mutex);
+			
 		}
 		if (sock->buff) {
 			free(sock->buff);
@@ -259,10 +281,6 @@ void tickHandler(uv_timer_t *req, int status) {
 
 void rpcHandler(uv_work_t *req) {
 	while (true) {
-		//if (rpc_queue.size() == 0) {
-		//	uv_sleep(1);
-		//	continue;
-		//}
 		uv_sem_wait(&rpc_queue_sem);
 		
 		uv_mutex_lock(&rpc_queue_mutex);
@@ -448,7 +466,16 @@ void on_new_connection(uv_stream_t *server, int status) {
 		client_map[client] = new_sock;
 		uv_rwlock_wrunlock(&client_map_rwlock);
 
-
+		uv_mutex_lock(&lua_mutex);
+		lua_getglobal(L,lua_cmd_type_name[L_onError]);
+		lua_getglobal(L,lua_cmd_type_name[L_onConnected]);
+		lua_pushinteger(L,new_sock->sock_id);
+		if (lua_pcall(L,1,0,-3) == 0) {
+			lua_pop(L,1);
+		} else {
+			lua_pop(L,2);
+		}
+		uv_mutex_unlock(&lua_mutex);
         uv_read_start((uv_stream_t*)client, alloc_buffer, read_client_cb);
 
     }
