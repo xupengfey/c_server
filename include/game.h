@@ -100,8 +100,6 @@ typedef struct _Sock {
 //MYSQL mysql;
 
 
-
-
 uv_buf_t alloc_buffer(uv_handle_t* handle, size_t suggested_size);
 void read_client_cb(uv_stream_t* handle, ssize_t nread, uv_buf_t buf);
 void read_nc_cb(uv_stream_t* handle, ssize_t nread, uv_buf_t buf);
