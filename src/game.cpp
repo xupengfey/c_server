@@ -5,11 +5,15 @@ MYSQL* pmysql;
 static lua_State* L;
 static uv_mutex_t lua_mutex;
 
-static std::deque<std::pair<int, char*> > rpc_queue;
+static std::queue<std::pair<int, char*> > rpc_queue;
 static uv_mutex_t rpc_queue_mutex;
 uv_sem_t rpc_queue_sem;
 
-std::deque<char*> db_queue;
+std::queue<SendQueBuff* > send_queue;
+uv_mutex_t send_queue_mutex;
+uv_sem_t send_queue_sem;
+
+std::queue<char*> db_queue;
 uv_mutex_t db_queue_mutex;
 uv_sem_t db_queue_sem;
 
@@ -148,7 +152,7 @@ void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 			memcpy(cmd, sock->buff+1, sock->lenth);
 			free(sock->buff);
 			uv_mutex_lock(&rpc_queue_mutex);
-			rpc_queue.push_back(std::make_pair(type,cmd));
+			rpc_queue.push(std::make_pair(type,cmd));
 			uv_mutex_unlock(&rpc_queue_mutex);
 			uv_sem_post(&rpc_queue_sem);
 		}
@@ -201,54 +205,10 @@ DEL:
 	uv_close((uv_handle_t*)handle, on_close);	
 }
 
-void after_send(uv_write_t* req, int status){
-	uv_buf_t* pbuf = (uv_buf_t*)req->data;
-	free(pbuf->base);
-	free(pbuf);
-	free(req);
-}
+
 
 void senddata(int sock_id, int type, const char* str){
 	//printf("senddata sock_id=%d type=%d str=%s\n",sock_id,type,str);
-	Sock* sock = NULL;
-	if (type == 1) {
-		uv_rwlock_rdlock(&client_map_rwlock);
-		sock = c_sockid_map[sock_id];
-		uv_rwlock_rdunlock(&client_map_rwlock);
-	} else {
-		uv_rwlock_rdlock(&nc_map_rwlock);
-		sock = nc_sockid_map[sock_id];
-		uv_rwlock_rdunlock(&nc_map_rwlock);
-	}
-
-	
-	if (sock) {
-		uv_write_t* req = (uv_write_t*) malloc(sizeof(uv_write_t));
-		uv_buf_t *pbuf = (uv_buf_t*)malloc(sizeof(uv_buf_t));
-		
-		int i;
-		int str_len = strlen(str);
-		int data_len = str_len + 1;
-		int buf_len = data_len + 4;
-		pbuf->base = (char*)malloc(buf_len);
-		for(i=3; i>=0; i--) {
-			pbuf->base[i] = data_len % (1<<8);
-			data_len = data_len >> 8;
-		}
-		pbuf->base[4] = 0; //占位 压缩 协议 等标识
-		memcpy(pbuf->base+5,str,str_len);
-		pbuf->len = buf_len;
-		//free((char*)str);
-		req->data = pbuf;
-		if (uv_write(req, (uv_stream_t*)sock->handle, pbuf, 1, after_send)) {
-			printf("[Error] uv_write failed\n");	
-			free(pbuf->base);
-			free(pbuf);
-			free(req);
-		}
-	} else {
-		printf("sock not exist sock_id=%d type=%d\n",sock_id,type);
-	}
 
 }
 
@@ -276,8 +236,8 @@ void rpcHandler(uv_work_t *req) {
 		uv_sem_wait(&rpc_queue_sem);
 		
 		uv_mutex_lock(&rpc_queue_mutex);
-		std::pair<int, char*> cmd = rpc_queue[0];
-		rpc_queue.pop_front();
+		std::pair<int, char*> cmd = rpc_queue.front();
+		rpc_queue.pop();
 		uv_mutex_unlock(&rpc_queue_mutex);
 		char *json_cmd = cmd.second;
 		
@@ -295,9 +255,131 @@ void rpcHandler(uv_work_t *req) {
 		//printf("after call_luarpc stack top %d\n",lua_gettop(L));
 		uv_mutex_unlock(&lua_mutex);
 		free(json_cmd);
-	
 	}
+}
 
+void free_send_req(uv_write_t *req)
+{	
+	SendDataBuff* psend_data_buf =  (SendDataBuff*)req->data;
+	if (psend_data_buf && psend_data_buf->num == 0) {
+		free(psend_data_buf->puv_buf->base);
+		free(psend_data_buf->puv_buf);
+		free(psend_data_buf);
+		free(req);
+	}
+}
+
+void free_send_queue(SendQueBuff *buf)
+{
+	if(buf) {
+		if (buf->psock) {
+			free(buf->psock);
+			buf->psock = NULL;
+		}
+		if(buf->data) {
+			free(buf->data);
+			buf->data = NULL;
+		}
+		buf = NULL;
+	}
+}
+
+void after_send(uv_write_t* req, int status){
+	SendDataBuff* psend_data_buf =  (SendDataBuff*)req->data;
+	psend_data_buf->num --;
+	free_send_req(req);
+}
+
+void sendHandler(uv_work_t *req) {
+	while (true) {
+		uv_sem_wait(&send_queue_sem);
+		uv_mutex_lock(&send_queue_mutex);
+		SendQueBuff* send_buf = send_queue.front();
+		send_queue.pop();
+		uv_mutex_unlock(&send_queue_mutex);
+
+		int i;
+		int data_len = send_buf->data_len + 1; // +1 协议
+		int buf_len = data_len + 4; // +4 包长度 +1 协议
+		char *new_buf = (char*)malloc(buf_len);
+		for(i=3; i>=0; i--) {
+			new_buf[i] = data_len % (1<<8);
+			data_len = data_len >> 8;
+		}
+		new_buf[4] = '\0'; //协议
+		memcpy(new_buf+5, send_buf->data, send_buf->data_len);
+
+		SendDataBuff *psenddata_buff = (SendDataBuff*)calloc(sizeof(SendDataBuff), 1);
+		psenddata_buff->puv_buf = (uv_buf_t*)malloc(sizeof(uv_buf_t));
+		psenddata_buff->puv_buf->base = new_buf;
+		psenddata_buff->puv_buf->len = buf_len;
+		//psenddata_buff->num = send_buf->vec_sock.size();
+		uv_write_t* req = (uv_write_t*) malloc(sizeof(uv_write_t));
+		req->data = psenddata_buff;
+
+		Sock* sock = NULL;
+
+
+		if (send_buf->dest_type == 1) {
+			uv_rwlock_rdlock(&client_map_rwlock);
+			if (send_buf->psock ) {
+				psenddata_buff->num = send_buf->psock[0];
+				for (i=1; i <= psenddata_buff->num; i++ ) {
+					sock = c_sockid_map[send_buf->psock[i]];
+					if (sock) {
+						if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {
+							printf("[Error] uv_write failed\n");	
+							psenddata_buff->num --;
+						}
+					} else {
+						psenddata_buff->num --;
+					}
+				}
+			} else {
+				psenddata_buff->num = c_sockid_map.size();
+				std::map<uv_tcp_t*, Sock*>::iterator it=client_map.begin();
+				for(; it != client_map.end(); it++) {
+					sock = it->second;
+					if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {
+							printf("[Error] uv_write failed\n");	
+							psenddata_buff->num --;
+						}
+				}
+				  
+			}
+			uv_rwlock_rdunlock(&client_map_rwlock);
+		} else {
+			uv_rwlock_rdlock(&nc_map_rwlock);
+			if (send_buf->psock) {
+				psenddata_buff->num = send_buf->psock[0];
+				for (i=1; i <= psenddata_buff->num; i++ ) {
+					sock = nc_sockid_map[send_buf->psock[i]];
+					if (sock) {
+						if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {
+							printf("[Error] uv_write failed\n");	
+							psenddata_buff->num --;
+						}
+					} else {
+						psenddata_buff->num --;
+					}
+				}
+			} else {
+				psenddata_buff->num = nc_sockid_map.size();
+				std::map<uv_tcp_t*, Sock*>::iterator it=nc_map.begin();
+				for(; it != nc_map.end(); it++) {
+					sock = it->second;
+					if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {
+							printf("[Error] uv_write failed\n");	
+							psenddata_buff->num --;
+						}
+				}
+			}
+			uv_rwlock_rdunlock(&nc_map_rwlock);
+		}
+		free_send_queue(send_buf);
+		free_send_req(req);
+
+	}
 
 }
 
@@ -331,8 +413,8 @@ void dbHandler(uv_work_t *req) {
 		//}
 	
 		uv_mutex_lock(&db_queue_mutex);
-		char *sql = db_queue[0];
-		db_queue.pop_front();
+		char *sql = db_queue.front();
+		db_queue.pop();
 		uv_mutex_unlock(&db_queue_mutex);
 
 		if (mysql_query(pmysql, sql)){
@@ -542,11 +624,27 @@ int tcp_connect(const char* ip, int port)
 
 
 int main(int argc, char** argv) {
+	// init the google glog library
+	google::InitGoogleLogging(argv[0]);
+	const char *log_dir = "logs";
+	if(access(log_dir,0) != 0)  
+	{  
+		if(mkdir(log_dir) == -1)  
+		{   
+			printf("mkdir error: %s\n", log_dir);
+		}  
+	} 
+	google::SetLogDestination(google::GLOG_INFO,	"logs/_info_");//"logs/info_");
+	google::SetLogDestination(google::GLOG_ERROR,	"logs/_error_");
+
+	LOG(INFO) << "glog init ...";
+
 
 	uv_mutex_init(&lua_mutex);
 	uv_mutex_init(&rpc_queue_mutex);
 	uv_sem_init(&rpc_queue_sem, 0);
-
+	uv_mutex_init(&send_queue_mutex);
+	uv_sem_init(&send_queue_sem, 0);
 	uv_mutex_init(&db_queue_mutex);
 	uv_sem_init(&db_queue_sem, 0);
 	uv_mutex_init(&c_sock_id_mutex);
@@ -564,16 +662,22 @@ int main(int argc, char** argv) {
 	luaL_openlibs(L);
 	luaopen_cjson(L);
 	registerAPI(L);
-	char *file = "./init.lua";
+	char *file;
+	if (argc > 1) {
+		file = argv[1];
+	} else {
+		file = "./init.lua";
+	}
+
 	if(luaL_dofile(L,file) == 1)
 	{
 		printf(lua_tostring(L,-1),"%s\n");
-		//return 1;
+		LOG(ERROR) << lua_tostring(L,-1);
 	}
 	lua_pop(L,lua_gettop(L));
 	uv_mutex_unlock(&lua_mutex);
 
-
+	LOG(INFO) << "lua virtual machine starting ...";
 	// dotick 定时器
 	uv_timer_t timer_req;
 	uv_timer_init(uv_default_loop(), &timer_req);
@@ -583,6 +687,10 @@ int main(int argc, char** argv) {
 	uv_work_t req_rpc;
 	uv_queue_work(uv_default_loop(), &req_rpc, rpcHandler, NULL);
 
+	// send 线程
+	uv_work_t req_send;
+	uv_queue_work(uv_default_loop(), &req_send, sendHandler, NULL);
+
 	// db 线程
 	uv_work_t req_db;
 	uv_queue_work(uv_default_loop(), &req_db, dbHandler, NULL);
@@ -591,6 +699,7 @@ int main(int argc, char** argv) {
 	uv_work_t req_cmd;
 	uv_queue_work(uv_default_loop(), &req_cmd, cmdHandler, NULL);
 
+	LOG(INFO) << "server starting ...";
     return uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 }
 

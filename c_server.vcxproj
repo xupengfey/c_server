@@ -82,6 +82,8 @@
     <ClInclude Include="include\cjson\fpconv.h" />
     <ClInclude Include="include\cjson\strbuf.h" />
     <ClInclude Include="include\game.h" />
+    <ClInclude Include="include\glog\log_severity.h" />
+    <ClInclude Include="include\uv\uv.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

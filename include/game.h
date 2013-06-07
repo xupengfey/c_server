@@ -3,21 +3,34 @@
 
 #ifdef WIN32
 #pragma comment(lib, "mysqlclient.lib")
-//#pragma comment(lib, "libmysql.lib")
 #pragma comment(lib, "lua51.lib")
 #pragma comment (lib, "libuv.lib")
 #pragma comment (lib, "ws2_32.lib")
 #pragma comment(lib, "psapi.lib")
 #pragma comment(lib, "Iphlpapi.lib")
+#pragma comment(lib, "libglog_static.lib")
+#pragma comment(lib, "libtcmalloc_minimal-debug.lib")
+
+#define GOOGLE_GLOG_DLL_DECL
+#define GLOG_NO_ABBREVIATED_SEVERITIES
 #endif
 
 
-#include <deque>
-#include <map>
+
 #include <stdio.h>
 #include <assert.h>
+#include "stdlib.h"
+#include "direct.h"
+#include "string.h"
+#include "io.h"
 #include <uv/uv.h>
 #include "cjson/cjson.h"
+#include <glog/logging.h>
+#include <vector>
+#include <queue>
+#include <map>
+
+
 
 extern "C" {
 	#include <mysql.h>
@@ -78,6 +91,20 @@ typedef struct _Sock {
 	uv_tcp_t* handle;
 
 }Sock,*PSock;
+
+
+typedef struct _SendQueBuff {
+	int dest_type; // 1 客户端 2 服务端
+	int *psock; //NULL 全部广播  psock[0] 表示数量
+	char *data;
+	int data_len;
+}SendQueBuff,*PSendQueBuff;
+
+typedef struct _SendDataBuff {
+	int num;
+	uv_buf_t* puv_buf;
+}SendDataBuff,*PSendDataBuff;
+
 
 
 

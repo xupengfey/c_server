@@ -30,6 +30,12 @@
     <ClInclude Include="include\cjson\strbuf.h">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="include\glog\log_severity.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\uv\uv.h">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="src">

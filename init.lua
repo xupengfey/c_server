@@ -83,13 +83,13 @@ function L_onMysql( ret )
 	printTable(ret)
 	--assert(false)
 end
-
-C_listen( 7000)
+ C_listen( 7000)
 -- print("lua start")
 
---C_connect("192.168.0.13",8080)
+C_connect("192.168.0.13",8080)
 
-C_senddata(1,2,"aaaaaaa")
+-- C_senddata(1,2,"aaaaaaa")
+C_broadcast({[1]=1,[2]=2,[3]=3},2,"bbbb")
 
 print("C_connectmysql",C_connectmysql("192.168.0.31","root","31^FishTest31@","test",3306))
 --_query("show databases")
