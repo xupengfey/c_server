@@ -49,7 +49,7 @@ extern "C" {
 #ifdef _WIN32
 #include <direct.h>
 #include <io.h>
-#elif _LINUX
+#else
 #include <stdarg.h>
 #include <sys/stat.h>
 #endif
@@ -57,7 +57,7 @@ extern "C" {
 #ifdef _WIN32
 #define ACCESS _access
 #define MKDIR(a) _mkdir((a))
-#elif _LINUX
+#else
 #define ACCESS access
 #define MKDIR(a) mkdir((a),0755)
 #endif
