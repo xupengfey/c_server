@@ -1,7 +1,7 @@
 #ifndef _GAME_H_
 #define _GAME_H_
 
-#ifdef WIN32
+#ifdef _WIN32
 #pragma comment(lib, "mysqlclient.lib")
 #pragma comment(lib, "lua51.lib")
 #pragma comment (lib, "libuv.lib")
@@ -20,9 +20,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "stdlib.h"
-#include "direct.h"
 #include "string.h"
-#include "io.h"
 #include <uv/uv.h>
 #include "cjson/cjson.h"
 #include <glog/logging.h>
@@ -42,7 +40,7 @@ extern "C" {
 
 
 
-#ifdef WIN32
+#ifdef _WIN32
 #define uv_sleep(timeout) Sleep(timeout)
 #else
 #define uv_sleep(timeout) usleep(timeout*1000)
