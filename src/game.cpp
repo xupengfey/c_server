@@ -627,9 +627,9 @@ int main(int argc, char** argv) {
 	// init the google glog library
 	google::InitGoogleLogging(argv[0]);
 	const char *log_dir = "logs";
-	if(access(log_dir,0) != 0)  
+	if(ACCESS(log_dir,0) != 0)  
 	{  
-		if(mkdir(log_dir) == -1)  
+		if(MKDIR(log_dir) == -1)  
 		{   
 			printf("mkdir error: %s\n", log_dir);
 		}  
