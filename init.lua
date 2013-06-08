@@ -1,112 +1,11 @@
-printTable = function(root)
-	if type(root) ~= "table" then
-		return
-	end
-	local cache = {  [root] = "." }
-	local function _dump(t,space,name)
-		local temp = {}
-		for k,v in pairs(t) do
-			local key = tostring(k)
-			if cache[v] then
-				table.insert(temp,"+" .. key .. " {" .. cache[v].."}")
-			elseif type(v) == "table" then
-				local new_key = name .. "." .. key
-				cache[v] = new_key
-				table.insert(temp,"+" .. key .. _dump(v,space .. (next(t,k) and "|" or " " ).. string.rep(" ",#key),new_key))
-			else
-				table.insert(temp,"+" .. key .. " [" .. tostring(v).."]")
-			end
-		end
-		return table.concat(temp,"\n"..space)
-	end
-	print(_dump(root, "",""))
-end
--- L_onTick L_onRPC L_onMysql
---local json = require "cjson"
+-- requie "scripts/system/core"
 
-client_rpc_map = {}
-nc_rpc_map = {}
-
--- rpc_map = {{},{}}
-
-function L_onError(message)
-	print("[Error]+++++++++++++++++++++++++++++++++++++++")
-	print(message)
-	print(debug.traceback())
-	--print(message)
-	print("[Error]---------------------------------------\n")
-
-end
-
-function L_onTick( ... )
-end
-
-function L_onRPC( type,sockId,jsonArgs )
-	print("L_onRPC",type,sockId,jsonArgs)
-	--print("L_onRPC",type,jsonArgs)
-	-- print("decode")
-	-- printTable(cjson.decode(jsonArgs))
-	local args = cjson.decode(jsonArgs)
-	local funName = table.remove(args,1)
-	print("L_onRPC", funName)
-	local t = {"aa'aa","bbbbbb\"bbb","ccc.ccc",{"dddddddddd"}}
-	t.tt = t
-	local str = cjson.encode(t)
-	-- local func
-	-- if type == 1 then
-	-- 	func = client_rpc_map[funName]
-	-- else
-	-- 	func = nc_rpc_map[funName]
-	-- end	
-
-	-- assert(func ~= nil, funName .. " not register")	
-
-	-- func(unpack(args))
-	 
-
-	-- print("encode")
-	-- local t = {1,2}
-	-- print(cjson.encode(t))
-end
-
-function L_onConnectedNC( sockId)
-	print("L_onConnectedNC",sockId)
-end
-
-function L_onMysql( ret )
-	print("L_onMysql", tostring(ret))
-	printTable(ret)
-	--assert(false)
-end
-
-
-function L_decode( str )
-	print("L_decode",str)
-	return cjson.decode(str)
-end
-
-function L_encode( t )
-	print("L_encode",t)
-	printTable(t)
-	return cjson.encode(t)
-end
-
-
-function L_onCommand( str )
-	print("L_onCommand",str)
-	local func = loadstring(str)
-	func()
-end
-
- C_listen( 7000)
+-- C_listen( 7000)
 -- print("lua start")
 
-C_connect("192.168.0.13",8080)
+--C_connect("192.168.0.13",8080)
 
--- C_senddata(1,2,"aaaaaaa")
-C_broadcast({[1]=1,[2]=2,[3]=3},2,{"ncname","bbbb",{"cc"}})
-
-print("C_connectmysql",C_connectmysql("192.168.0.31","root","31^FishTest31@","test",3306))
+-- print("C_connectmysql",C_connectmysql("192.168.0.31","root","31^FishTest31@","test",3306))
 --_query("show databases")
 -- C_query("select 1")
 -- C_query("select 0.00001")
@@ -117,7 +16,25 @@ print("C_connectmysql",C_connectmysql("192.168.0.31","root","31^FishTest31@","te
 -- local sql = "insert test (json) values ('"..C_escapedStr(str).."')"
 -- C_query(sql)
 -- local sql = "select * from test"
--- local sql = "select * from test"
+-- local sql = "select NULL"
 -- C_query(sql)
+-- if C_SetClientSendCompress ~= nil then
+-- 	package.cpath = "../lib/?.so;../lib/luasocket/?.so;../server/lib/?.so;../server/lib/luasocket/?.so"
+-- else
+-- 	package.cpath = "../lib/?.dll;../lib/luasocket/?.dll"
+-- end
+package.path = "scripts/?.lua;"
 
-C_log(1,"tttttttttttttttttttttttttt")
+print("load init.lua")
+require "system.core"
+local sys = require "system.sys"
+
+-- printTable(_G)
+print("C_connectmysql",sys.dbConnect("192.168.0.31","root","31^FishTest31@","test",3306))
+local sql = "select * from test"
+sys.dbQuery(sql,function ( ret )
+	print("cb called")
+	printTable(ret)
+end)
+
+C_broadcast({[1]=1,[2]=2,[3]=3},2,"bbbb")
