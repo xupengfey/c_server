@@ -16,7 +16,7 @@
 #endif
 
 
-
+#include <iostream>
 #include <stdio.h>
 #include <assert.h>
 #include "stdlib.h"
@@ -38,6 +38,7 @@ extern "C" {
 }
 
 
+using namespace std;
 
 
 #ifdef _WIN32
@@ -57,9 +58,11 @@ extern "C" {
 #ifdef _WIN32
 #define ACCESS _access
 #define MKDIR(a) _mkdir((a))
+#define MYLOG(level) cout
 #elif _LINUX
 #define ACCESS access
 #define MKDIR(a) mkdir((a),0755)
+#difine MYLOG(level) LOG(level)
 #endif
 
 
@@ -68,6 +71,7 @@ typedef enum {
 	L_onError,
     L_onTick,
     L_onRPC,
+	L_encode,
 	L_decode,
 	L_onConnected,
 	L_onConnectedNC,
@@ -82,6 +86,7 @@ static const char *lua_cmd_type_name[] = {
 	"L_onError",
 	"L_onTick",
     "L_onRPC",
+	"L_encode",
 	"L_decode",
 	"L_onConnected",
 	"L_onConnectedNC",
@@ -100,12 +105,19 @@ typedef struct _Sock {
 	int read_status; // 0包头 5个字节 | 1 内容 | 2 finish
 	int lenth;
 	int readed;
-	char protocol; // 0 json 1 amf3    01 加密类型 23 压缩类型 4567协议类型
 	char* buff;
 	uv_tcp_t* handle;
 
 }Sock,*PSock;
 
+
+typedef struct _RpcQueBuff {
+	char protocol; // 0 json 1 amf3    01 加密类型 23 压缩类型 4567协议类型
+	int dest_type;
+	int sock_id;
+	int data_len;
+	char *data;
+}RpcQueBuff,*PRpcQueBuff;
 
 typedef struct _SendQueBuff {
 	int dest_type; // 1 客户端 2 服务端
@@ -133,7 +145,15 @@ void senddata(int sock_id, int type, const char* str);
 int listen_port(int port);
 int tcp_connect(const char* ip, int port);
 
-void call_luarpc(int type, char* json_cmd);
+//void call_luarpc(int type, char* json_cmd);
+void encrypt(char *str, int len);
+void unencrypt(char *str, int len);
+char* compress(char *str);
+char* uncompress(char *str);
+void json_encode(lua_State* L);
+void json_decode(lua_State* L, char*str, int len);
+
+
 
 void registerAPI(lua_State* L);
 

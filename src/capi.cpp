@@ -15,13 +15,13 @@ bool check_args(lua_State* L, int argn)
 	if (argn == n) {
 		for(;n>0;n--) {
 			if(lua_isnil(L,n)) {
-				printf("arg can not be nil\n");
+				MYLOG(ERROR) << "arg can not be nil" << endl;
 				return false;
 			}
 		}
 		return true;
 	} else {
-		printf("args count not match, need %d, in fact %d\n", argn, n);
+		MYLOG(ERROR) << "args count not match, need " << argn << ", in fact %" << n;
 		lua_getglobal(L,lua_cmd_type_name[L_onError]);
 		if (lua_pcall(L,0,0,0) == 0) {
 		} else {
@@ -39,12 +39,13 @@ int C_senddata(lua_State* L)
 	int sock_id = lua_tointeger(L,1);
 	int dest_type = lua_tointeger(L,2);
 	size_t data_len;
+	json_encode(L);
 	const char *json_str = lua_tolstring(L,3,&data_len);
 
 	SendQueBuff* buf = (SendQueBuff*)calloc(sizeof(SendQueBuff),1);
 	buf->dest_type = dest_type;
 	buf->data = (char *)malloc(data_len);
-	buf->data_len = data_len;;
+	buf->data_len = data_len;
 	buf->psock = (int *)malloc(2*sizeof(int));
 	buf->psock[0] = 1;
 	buf->psock[1] = sock_id;
@@ -63,6 +64,7 @@ int C_broadcast(lua_State* L)
 		return 0;
 	}
 	int dest_type = lua_tointeger(L,2);
+	json_encode(L);
 	size_t data_len;
 	const char *json_str = lua_tolstring(L,3,&data_len);
 	int sock_id;
@@ -77,7 +79,6 @@ int C_broadcast(lua_State* L)
 	lua_pushnil(L);  /* first key */
 	while (lua_next(L, 1) != 0) {
 		sock_id = lua_tointeger(L,-1);
-		printf("sock_id=%d\n",sock_id);
 		if (count < 1023) {
 			count++;
 			buf->psock[count] = sock_id;
@@ -98,11 +99,10 @@ int C_broadcastall(lua_State* L)
 		return 0;
 	}
 	int dest_type = lua_tointeger(L,1);
+	json_encode(L);
 	size_t data_len;
 	const char *json_str = lua_tolstring(L,2,&data_len);
-
 	SendQueBuff* buf = (SendQueBuff*)calloc(sizeof(SendQueBuff),1);
-	//buf->send_type = 2;
 	buf->dest_type = dest_type;
 	buf->data = (char *)malloc(data_len);
 	buf->data_len = data_len;
@@ -153,11 +153,9 @@ int C_connectmysql(lua_State* L)
 	pmysql = mysql_real_connect(pmysql, server,
          user, pass, database, port, NULL, 0);
 	if (pmysql) {
-		//mysql_conn_id++;
-		//mysql_conn_map[mysql_conn_id] = pmysql;
 		lua_pushinteger(L,0);
 	} else {
-		fprintf(stderr, "%s\n", mysql_error(pmysql));
+		MYLOG(ERROR) << mysql_error(pmysql) << endl;
 		lua_pushinteger(L,1);
 	}
 	return 1;
@@ -213,16 +211,16 @@ int C_log(lua_State* L)
 	const char* log_info = lua_tostring(L, 2);
 	switch(log_level) {
 		case 0:
-			LOG(INFO) << log_info;
+			MYLOG(INFO) << log_info << endl;
 			break;
 		case 1:
-			LOG(WARNING) << log_info;
+			MYLOG(WARNING) << log_info << endl;
 			break;
 		case 2:
-			LOG(ERROR) << log_info;
+			MYLOG(ERROR) << log_info << endl;
 			break;
 		default:
-			LOG(ERROR) << log_info;
+			MYLOG(ERROR) << log_info << endl;
 			break;
 	}
 	return 0;

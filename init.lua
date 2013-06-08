@@ -41,7 +41,8 @@ end
 function L_onTick( ... )
 end
 
-function L_onRPC( type,jsonArgs )
+function L_onRPC( type,sockId,jsonArgs )
+	print("L_onRPC",type,sockId,jsonArgs)
 	--print("L_onRPC",type,jsonArgs)
 	-- print("decode")
 	-- printTable(cjson.decode(jsonArgs))
@@ -70,12 +71,6 @@ end
 
 function L_onConnectedNC( sockId)
 	print("L_onConnectedNC",sockId)
-	local t = {"funName","aaaaaa","bbbbbbbbbb"}
-	local str = cjson.encode(t)
-	print(str)
-	-- C_senddata(sockId,2,str)
-	-- C_senddata(sockId,2,str)
-	-- C_senddata(sockId,2,str)
 end
 
 function L_onMysql( ret )
@@ -83,13 +78,33 @@ function L_onMysql( ret )
 	printTable(ret)
 	--assert(false)
 end
+
+
+function L_decode( str )
+	print("L_decode",str)
+	return cjson.decode(str)
+end
+
+function L_encode( t )
+	print("L_encode",t)
+	printTable(t)
+	return cjson.encode(t)
+end
+
+
+function L_onCommand( str )
+	print("L_onCommand",str)
+	local func = loadstring(str)
+	func()
+end
+
  C_listen( 7000)
 -- print("lua start")
 
 C_connect("192.168.0.13",8080)
 
 -- C_senddata(1,2,"aaaaaaa")
-C_broadcast({[1]=1,[2]=2,[3]=3},2,"bbbb")
+C_broadcast({[1]=1,[2]=2,[3]=3},2,{"ncname","bbbb",{"cc"}})
 
 print("C_connectmysql",C_connectmysql("192.168.0.31","root","31^FishTest31@","test",3306))
 --_query("show databases")
@@ -102,19 +117,7 @@ print("C_connectmysql",C_connectmysql("192.168.0.31","root","31^FishTest31@","te
 -- local sql = "insert test (json) values ('"..C_escapedStr(str).."')"
 -- C_query(sql)
 -- local sql = "select * from test"
-local sql = "select * from test"
-C_query(sql)
+-- local sql = "select * from test"
+-- C_query(sql)
 
-function L_decode( str )
-	print("L_decode",str)
-	return cjson.decode(str)
-	-- return {"funName","aaaaaa","bbbbbbbbbb"}
-	-- return cjson.decode(str)
-end
-
-
-function L_onCommand( str )
-	print("L_onCommand",str)
-	local func = loadstring(str)
-	func()
-end
+C_log(1,"tttttttttttttttttttttttttt")

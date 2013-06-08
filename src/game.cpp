@@ -5,9 +5,9 @@ MYSQL* pmysql;
 static lua_State* L;
 static uv_mutex_t lua_mutex;
 
-static std::queue<std::pair<int, char*> > rpc_queue;
+static std::queue<RpcQueBuff* > rpc_queue;
 static uv_mutex_t rpc_queue_mutex;
-uv_sem_t rpc_queue_sem;
+static uv_sem_t rpc_queue_sem;
 
 std::queue<SendQueBuff* > send_queue;
 uv_mutex_t send_queue_mutex;
@@ -35,6 +35,38 @@ uv_buf_t alloc_buffer(uv_handle_t* handle, size_t suggested_size) {
 	return uv_buf_init((char *)malloc(suggested_size), suggested_size);
 }
 
+void free_rpc_buf(RpcQueBuff *pbuf)
+{
+	free(pbuf->data);
+	free(pbuf);
+}
+
+void free_send_req(uv_write_t *req)
+{	
+	SendDataBuff* psend_data_buf =  (SendDataBuff*)req->data;
+	if (psend_data_buf && psend_data_buf->num == 0) {
+		free(psend_data_buf->puv_buf->base);
+		free(psend_data_buf->puv_buf);
+		free(psend_data_buf);
+		free(req);
+	}
+}
+
+void free_send_queue(SendQueBuff *buf)
+{
+	if(buf) {
+		if (buf->psock) {
+			free(buf->psock);
+			buf->psock = NULL;
+		}
+		if(buf->data) {
+			free(buf->data);
+			buf->data = NULL;
+		}
+		buf = NULL;
+	}
+}
+
 
 
 void on_close(uv_handle_t* peer) {
@@ -51,7 +83,7 @@ void read_nc_cb(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 
 
 void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
-	printf("after read %d\n", nread);
+	//printf("after read %d\n", nread);
 	uv_tcp_t* tcp = (uv_tcp_t*)handle;
 	//printf("after_read sock=%d\n", tcp);
 	uv_shutdown_t* req = NULL;
@@ -99,15 +131,15 @@ void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 					//printf("%d: %d: %c\n",i,(unsigned char)buf.base[i],buf.base[i]);
 					sock->lenth = (sock->lenth << 8) + (unsigned char)(buf.base[i]);
 				} else  {
-					printf("##head end len=%d\n",sock->lenth);
+					//printf("##head end len=%d\n",sock->lenth);
 					if (type == 1 && sock->lenth > 1000000 ) {
-						printf("data too large error sock=%d\n", sock->sock_id);
+						MYLOG(ERROR) << "data too large error sock=" << sock->sock_id << endl;
 						free(buf.base);
 						goto DEL;
 					}
 
 					sock->readed = 0;
-					sock->buff = (char*)malloc(sock->lenth+1); // '\0;
+					sock->buff = (char*)malloc(sock->lenth); 
 					sock->read_status = 1;
 					break;
 				} 
@@ -124,35 +156,30 @@ void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 				i += len;
 			}
 			if (sock->readed == sock->lenth) {
-				sock->buff[sock->lenth] = '\0';
 				sock->read_status = 2;
 			} else {
 				free(buf.base);
 				return;
 			}
 		case 2:
-			sock->protocol = sock->buff[0];
+			//sock->protocol = sock->buff[0];
 			sock->read_status = 0;
 			sock->readed = 0;
-			char protocol = sock->buff[0];
-			// 根据protocol生成cmd
-			if (sock->protocol & (1<<6)) {
-				// 解密
-			}
+			int cmd_len = sock->lenth-1;
+			char *cmd = (char*)malloc(cmd_len);
+			memcpy(cmd, sock->buff+1, cmd_len);
 
-			if (sock->protocol & (1<<4)) {
-				// 解压缩
-			}
+			RpcQueBuff *pbuf = (RpcQueBuff*)malloc(sizeof(RpcQueBuff));
+			pbuf->protocol = sock->buff[0];
+			pbuf->dest_type = type;
+			pbuf->sock_id = sock->sock_id;
+			pbuf->data_len = cmd_len;
+			pbuf->data = cmd;
 
-			if (sock->protocol & 1) {
-				// amf协议
-			}
-
-			char *cmd = (char*)malloc(sock->lenth);
-			memcpy(cmd, sock->buff+1, sock->lenth);
 			free(sock->buff);
+
 			uv_mutex_lock(&rpc_queue_mutex);
-			rpc_queue.push(std::make_pair(type,cmd));
+			rpc_queue.push(pbuf);
 			uv_mutex_unlock(&rpc_queue_mutex);
 			uv_sem_post(&rpc_queue_sem);
 		}
@@ -207,12 +234,6 @@ DEL:
 
 
 
-void senddata(int sock_id, int type, const char* str){
-	//printf("senddata sock_id=%d type=%d str=%s\n",sock_id,type,str);
-
-}
-
-
 
 
 
@@ -236,53 +257,47 @@ void rpcHandler(uv_work_t *req) {
 		uv_sem_wait(&rpc_queue_sem);
 		
 		uv_mutex_lock(&rpc_queue_mutex);
-		std::pair<int, char*> cmd = rpc_queue.front();
+		RpcQueBuff* pbuf = rpc_queue.front();
 		rpc_queue.pop();
 		uv_mutex_unlock(&rpc_queue_mutex);
-		char *json_cmd = cmd.second;
+
+		char protocol = pbuf->protocol;
+		// 根据protocol生成cmd
+		if (protocol & (1<<6)) {
+			// 解密
+			unencrypt(pbuf->data,pbuf->data_len);
+		}
+
+		if (protocol & (1<<4)) {
+			// 解压缩
+		}
+
+		if (protocol & 1) {
+			// amf协议
+		}
 		
 		uv_mutex_lock(&lua_mutex);
 		//printf("call_luarpc stack top %d\n",lua_gettop(L));
 		lua_getglobal(L,lua_cmd_type_name[L_onError]);
 		lua_getglobal(L,lua_cmd_type_name[L_onRPC]);
-		lua_pushinteger(L,cmd.first);
-		lua_pushstring(L,json_cmd);
-		if (lua_pcall(L,2,0,-4) == 0) {
+		lua_pushinteger(L,pbuf->dest_type);
+		lua_pushinteger(L,pbuf->sock_id);
+		if (protocol & 1) {
+		} else {
+			json_decode(L, pbuf->data,pbuf->data_len);
+		}
+		if (lua_pcall(L,3,0,1) == 0) {
 			lua_pop(L,1);
 		} else {
 			lua_pop(L,2);
 		}
 		//printf("after call_luarpc stack top %d\n",lua_gettop(L));
 		uv_mutex_unlock(&lua_mutex);
-		free(json_cmd);
+		free_rpc_buf(pbuf);
 	}
 }
 
-void free_send_req(uv_write_t *req)
-{	
-	SendDataBuff* psend_data_buf =  (SendDataBuff*)req->data;
-	if (psend_data_buf && psend_data_buf->num == 0) {
-		free(psend_data_buf->puv_buf->base);
-		free(psend_data_buf->puv_buf);
-		free(psend_data_buf);
-		free(req);
-	}
-}
 
-void free_send_queue(SendQueBuff *buf)
-{
-	if(buf) {
-		if (buf->psock) {
-			free(buf->psock);
-			buf->psock = NULL;
-		}
-		if(buf->data) {
-			free(buf->data);
-			buf->data = NULL;
-		}
-		buf = NULL;
-	}
-}
 
 void after_send(uv_write_t* req, int status){
 	SendDataBuff* psend_data_buf =  (SendDataBuff*)req->data;
@@ -327,8 +342,7 @@ void sendHandler(uv_work_t *req) {
 				for (i=1; i <= psenddata_buff->num; i++ ) {
 					sock = c_sockid_map[send_buf->psock[i]];
 					if (sock) {
-						if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {
-							printf("[Error] uv_write failed\n");	
+						if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
 							psenddata_buff->num --;
 						}
 					} else {
@@ -340,8 +354,7 @@ void sendHandler(uv_work_t *req) {
 				std::map<uv_tcp_t*, Sock*>::iterator it=client_map.begin();
 				for(; it != client_map.end(); it++) {
 					sock = it->second;
-					if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {
-							printf("[Error] uv_write failed\n");	
+					if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
 							psenddata_buff->num --;
 						}
 				}
@@ -355,8 +368,7 @@ void sendHandler(uv_work_t *req) {
 				for (i=1; i <= psenddata_buff->num; i++ ) {
 					sock = nc_sockid_map[send_buf->psock[i]];
 					if (sock) {
-						if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {
-							printf("[Error] uv_write failed\n");	
+						if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
 							psenddata_buff->num --;
 						}
 					} else {
@@ -368,8 +380,7 @@ void sendHandler(uv_work_t *req) {
 				std::map<uv_tcp_t*, Sock*>::iterator it=nc_map.begin();
 				for(; it != nc_map.end(); it++) {
 					sock = it->second;
-					if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {
-							printf("[Error] uv_write failed\n");	
+					if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
 							psenddata_buff->num --;
 						}
 				}
@@ -408,18 +419,14 @@ void dbHandler(uv_work_t *req) {
 	//printf("dbHandler\n");
 	while(true) {
 		uv_sem_wait(&db_queue_sem);
-		//if (db_queue.size() == 0) {
-		//	continue;
-		//}
-	
 		uv_mutex_lock(&db_queue_mutex);
 		char *sql = db_queue.front();
 		db_queue.pop();
 		uv_mutex_unlock(&db_queue_mutex);
 
 		if (mysql_query(pmysql, sql)){
-			printf("%s\n", mysql_error(pmysql));
-			printf("sql:%s\n",sql);
+			MYLOG(ERROR) << mysql_error(pmysql) << endl;
+			MYLOG(ERROR) << "sql:" << sql << endl;
 			uv_mutex_lock(&lua_mutex);
 			lua_getglobal(L,lua_cmd_type_name[L_onError]);
 			lua_getglobal(L,lua_cmd_type_name[L_onMysql]);
@@ -482,9 +489,7 @@ void dbHandler(uv_work_t *req) {
 					if (row[i] == NULL || strlen((char*)row[i]) == 0) {
 						lua_pushnil(L);
 					} else {
-						lua_getglobal(L,lua_cmd_type_name[L_decode]);
-						lua_pushstring(L,row[i]);
-						lua_pcall(L,1,1,1);
+						json_decode(L, row[i], strlen(row[i]));
 					}
 				} else {
 					lua_pushstring(L,row[i]);
@@ -514,7 +519,7 @@ int listen_port(int port)
     uv_tcp_bind(ptcp_server, bind_addr);
     int r = uv_listen((uv_stream_t*) ptcp_server, 128, on_new_connection);
     if (r) {
-        fprintf(stderr, "Listen error %s\n", uv_err_name(uv_last_error(uv_default_loop())));
+		MYLOG(ERROR) << "Listen error" << uv_err_name(uv_last_error(uv_default_loop())) << endl;
 		free(ptcp_server);
         return 1;
     }
@@ -578,7 +583,7 @@ void on_new_connection(uv_stream_t *server, int status) {
 
 void connect_cb(uv_connect_t* req, int status) {
 	if (status == -1) {
-		printf("connect failed\n");
+		MYLOG(ERROR) << "connect failed" << endl;
 		free(req);
 		return;
 	}
@@ -622,6 +627,35 @@ int tcp_connect(const char* ip, int port)
 	return uv_tcp_connect(pconnect_req, ptcp_client,server_addr,connect_cb);
 }
 
+void encrypt(char *str, int len) 
+{
+	int i;
+	for (i = 0; i < len; i++) {
+		str[i] = str[i] ^ (i%7);
+	}
+}
+void unencrypt(char *str, int len)
+{
+	int i;
+	for (i = 0; i < len; i++) {
+		str[i] = str[i] ^ (i%7);
+	}
+}
+char* compress(char *str);
+char* uncompress(char *str);
+
+void json_encode(lua_State* L) {
+	lua_getglobal(L,lua_cmd_type_name[L_encode]);
+	lua_insert(L,-2);
+	lua_pcall(L,1,1,0);
+}
+
+void json_decode(lua_State* L, char*str, int len) {
+	lua_getglobal(L,lua_cmd_type_name[L_decode]);
+	lua_pushlstring(L, str, len);
+	lua_pcall(L,1,1,0);
+}
+
 
 int main(int argc, char** argv) {
 	// init the google glog library
@@ -637,7 +671,7 @@ int main(int argc, char** argv) {
 	google::SetLogDestination(google::GLOG_INFO,	"logs/_info_");//"logs/info_");
 	google::SetLogDestination(google::GLOG_ERROR,	"logs/_error_");
 
-	LOG(INFO) << "glog init ...";
+	MYLOG(INFO) << "glog init ..." << endl;
 
 
 	uv_mutex_init(&lua_mutex);
@@ -672,12 +706,12 @@ int main(int argc, char** argv) {
 	if(luaL_dofile(L,file) == 1)
 	{
 		printf(lua_tostring(L,-1),"%s\n");
-		LOG(ERROR) << lua_tostring(L,-1);
+		MYLOG(ERROR) << lua_tostring(L,-1) << endl;
 	}
 	lua_pop(L,lua_gettop(L));
 	uv_mutex_unlock(&lua_mutex);
 
-	LOG(INFO) << "lua virtual machine starting ...";
+	MYLOG(INFO) << "lua virtual machine starting ..." << endl;
 	// dotick 定时器
 	uv_timer_t timer_req;
 	uv_timer_init(uv_default_loop(), &timer_req);
@@ -699,7 +733,7 @@ int main(int argc, char** argv) {
 	uv_work_t req_cmd;
 	uv_queue_work(uv_default_loop(), &req_cmd, cmdHandler, NULL);
 
-	LOG(INFO) << "server starting ...";
+	MYLOG(INFO) << "server starting ..." << endl;
     return uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 }
 
