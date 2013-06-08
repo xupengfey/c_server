@@ -1,40 +1,38 @@
--- requie "scripts/system/core"
-
--- C_listen( 7000)
--- print("lua start")
-
---C_connect("192.168.0.13",8080)
-
--- print("C_connectmysql",C_connectmysql("192.168.0.31","root","31^FishTest31@","test",3306))
---_query("show databases")
--- C_query("select 1")
--- C_query("select 0.00001")
--- C_query("select sum(id) from t_account")
--- local t = {"aa'aa","bbbbbb\"bbb","ccc.ccc",{"dddddddddd"}}
--- t.tt = t
--- local str = cjson.encode(t)
--- local sql = "insert test (json) values ('"..C_escapedStr(str).."')"
--- C_query(sql)
--- local sql = "select * from test"
--- local sql = "select NULL"
--- C_query(sql)
--- if C_SetClientSendCompress ~= nil then
--- 	package.cpath = "../lib/?.so;../lib/luasocket/?.so;../server/lib/?.so;../server/lib/luasocket/?.so"
--- else
--- 	package.cpath = "../lib/?.dll;../lib/luasocket/?.dll"
--- end
 package.path = "scripts/?.lua;"
-
-print("load init.lua")
+print("load test.lua")
 require "system.core"
-local sys = require "system.sys"
+local mSys = require "system.sys"
+local mTimer = require "system.timer"
 
--- printTable(_G)
-print("C_connectmysql",sys.dbConnect("192.168.0.31","root","31^FishTest31@","test",3306))
-local sql = "select * from test"
-sys.dbQuery(sql,function ( ret )
-	print("cb called")
-	printTable(ret)
-end)
 
-C_broadcast({[1]=1,[2]=2,[3]=3},2,"bbbb")
+local ip = "127.0.0.1"
+local listenPort = "8000"
+
+
+
+function send( ... )
+	print("send data")
+	local data = {}
+	-- local num = math.random(10000)
+	local num = 900000
+	for i=1,num do
+		table.insert(data, "adfaklfjakdf;asdkf;akdfal;kdf';")
+	end	
+	mSys.callNc(1, "funcName", data)
+	mTimer.setTimeOut(send,math.random(0,200))
+end
+
+
+function test_sendData( ... )
+	mSys.connect(ip, listenPort)
+	mTimer.setTimeOut(send,100)
+end
+
+
+test_sendData()
+
+
+
+
+
+

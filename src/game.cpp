@@ -91,19 +91,6 @@ void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 	int len = 0;
 	int i = 0;
 
-	if (nread < 0) {
-		if (buf.base) {
-			free(buf.base);
-		}
-		goto DEL;
-	}
-
-	if (nread == 0) {
-		/* Everything OK, but nothing read. */
-		free(buf.base);
-		return;
-	}
-
 	if (type == 1) {
 		uv_rwlock_rdlock(&client_map_rwlock);
 		sock = client_map[tcp];
@@ -114,6 +101,18 @@ void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 		uv_rwlock_rdunlock(&nc_map_rwlock);
 	}
 	if (sock == NULL) {
+		free(buf.base);
+		return;
+	}
+
+	if (nread < 0) {
+		if (buf.base) {
+			free(buf.base);
+		}
+		goto DEL;
+	}
+
+	if (nread == 0) {
 		free(buf.base);
 		return;
 	}
@@ -132,7 +131,7 @@ void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 					sock->lenth = (sock->lenth << 8) + (unsigned char)(buf.base[i]);
 				} else  {
 					//printf("##head end len=%d\n",sock->lenth);
-					if (type == 1 && sock->lenth > 1000000 ) {
+					if (type == 1 && sock->lenth > 1000000000 ) {
 						MYLOG(ERROR) << "data too large error sock=" << sock->sock_id << endl;
 						free(buf.base);
 						goto DEL;
@@ -177,6 +176,7 @@ void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 			pbuf->data = cmd;
 
 			free(sock->buff);
+			sock->buff = NULL;
 
 			uv_mutex_lock(&rpc_queue_mutex);
 			rpc_queue.push(pbuf);
@@ -190,7 +190,7 @@ void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 DEL:
 	if (sock) {
 		if (type == 1) {
-			uv_rwlock_wrunlock(&client_map_rwlock);
+			uv_rwlock_wrlock(&client_map_rwlock);
 			client_map.erase(sock->handle);
 			c_sockid_map.erase(sock->sock_id);
 			uv_rwlock_wrunlock(&client_map_rwlock);
@@ -199,7 +199,7 @@ DEL:
 			lua_getglobal(L,lua_cmd_type_name[L_onError]);
 			lua_getglobal(L,lua_cmd_type_name[L_onClose]);
 			lua_pushinteger(L,sock->sock_id);
-			if (lua_pcall(L,0,0,1) == 0) {
+			if (lua_pcall(L,1,0,1) == 0) {
 				lua_pop(L,1);
 			} else {
 				lua_pop(L,2);
@@ -207,7 +207,7 @@ DEL:
 			uv_mutex_unlock(&lua_mutex);
 
 		} else {
-			uv_rwlock_wrunlock(&nc_map_rwlock);
+			uv_rwlock_wrlock(&nc_map_rwlock);
 			nc_map.erase(sock->handle);
 			nc_sockid_map.erase(sock->sock_id);
 			uv_rwlock_wrunlock(&nc_map_rwlock);
@@ -216,7 +216,7 @@ DEL:
 			lua_getglobal(L,lua_cmd_type_name[L_onError]);
 			lua_getglobal(L,lua_cmd_type_name[L_onCloseNC]);
 			lua_pushinteger(L,sock->sock_id);
-			if (lua_pcall(L,0,0,1) == 0) {
+			if (lua_pcall(L,1,0,1) == 0) {
 				lua_pop(L,1);
 			} else {
 				lua_pop(L,2);
@@ -358,7 +358,6 @@ void sendHandler(uv_work_t *req) {
 							psenddata_buff->num --;
 						}
 				}
-				  
 			}
 			uv_rwlock_rdunlock(&client_map_rwlock);
 		} else {
@@ -367,9 +366,11 @@ void sendHandler(uv_work_t *req) {
 				psenddata_buff->num = send_buf->psock[0];
 				for (i=1; i <= psenddata_buff->num; i++ ) {
 					sock = nc_sockid_map[send_buf->psock[i]];
+					
 					if (sock) {
 						if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
 							psenddata_buff->num --;
+						} else {
 						}
 					} else {
 						psenddata_buff->num --;
@@ -381,8 +382,10 @@ void sendHandler(uv_work_t *req) {
 				for(; it != nc_map.end(); it++) {
 					sock = it->second;
 					if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
-							psenddata_buff->num --;
-						}
+						psenddata_buff->num --;
+					} else {
+						
+					}
 				}
 			}
 			uv_rwlock_rdunlock(&nc_map_rwlock);

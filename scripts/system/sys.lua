@@ -6,29 +6,29 @@
 -- lua_register(L,"C_connectmysql",		C_connectmysql);
 -- lua_register(L,"C_query",		C_query);
 -- lua_register(L,"C_escapedStr",		C_escapedStr);
-local C_senddata,C_broadcast,C_broadcastall,C_connect,C_listen,C_connectmysql,C_query,C_escapedStr,pack,cjson,table,cbFunc
-	= C_senddata,C_broadcast,C_broadcastall,C_connect,C_listen,C_connectmysql,C_query,C_escapedStr,pack,cjson,table,cbFunc
+local C_senddata,C_broadcast,C_broadcastall,C_connect,C_listen,C_connectmysql,C_query,C_escapedStr,cjson,table,cbFunc
+	= C_senddata,C_broadcast,C_broadcastall,C_connect,C_listen,C_connectmysql,C_query,C_escapedStr,cjson,table,cbFunc
 
 module "system.sys"
 
 
 
 function callClient(sockId, funcName, ...)
-	return C_senddata(sockId, 1, pack(funcName,...))
+	return C_senddata(sockId, 1, {funcName,...})
 end
 
 function callNc(sockId, funcName, ...)
-	return C_senddata(sockId, 2, pack(funcName,...))
+	return C_senddata(sockId, 2, {funcName,...})
 end
 
 -- sockList
 -- 	{sockId,-}
 function broadCastToSockList( sockList,  funcName, ...)
-	return C_broadcast(sockList, 1, pack(funcName,...))
+	return C_broadcast(sockList, 1, {funcName,...})
 end
 
 function broadcastToAll( funcName, ... )
-	return C_broadcastall(1, pack(funcName,...))
+	return C_broadcastall(1, {funcName,...})
 end
 
 -- 异步

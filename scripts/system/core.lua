@@ -1,3 +1,4 @@
+local mTimer = require "system.timer"
 printTable = function(root)
 	if type(root) ~= "table" then
 		return
@@ -30,16 +31,20 @@ cbFunc = {}
 
 
 function L_onError(message)
-	print("[Error]+++++++++++++++++++++++++++++++++++++++")
-	print(debug.traceback())
-	print("[Error]---------------------------------------\n")
+	C_log(2,"[Error]+++++++++++++++++++++++++++++++++++++++")
+	C_log(2,debug.traceback())
+	C_log(2,"[Error]---------------------------------------\n")
 
 end
 
 function L_onTick( ... )
+	-- print("L_onTick")
+	mTimer.runTimer()
 end
 
-function L_onRPC( type,args )
+function L_onRPC( type,sockId,args )
+	print("L_onRPC",type,sockId,args)
+	-- printTable(args)
 	local funName = table.remove(args,1)
 	local func
 	if type == 1 then
@@ -74,7 +79,7 @@ function L_onCloseMysql( sockId)
 end
 
 function L_encode( t )
-	return cjson.L_encode(t)
+	return cjson.encode(t)
 end
 function L_decode( str )
 	return cjson.decode(str)
