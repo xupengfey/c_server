@@ -50,7 +50,7 @@ using namespace std;
 #ifdef _WIN32
 #include <direct.h>
 #include <io.h>
-#elif _LINUX
+#else
 #include <stdarg.h>
 #include <sys/stat.h>
 #endif
@@ -59,7 +59,7 @@ using namespace std;
 #define ACCESS _access
 #define MKDIR(a) _mkdir((a))
 #define MYLOG(level) cout
-#elif _LINUX
+#else
 #define ACCESS access
 #define MKDIR(a) mkdir((a),0755)
 #difine MYLOG(level) LOG(level)
