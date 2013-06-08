@@ -396,7 +396,7 @@ void sendHandler(uv_work_t *req) {
 
 void cmdHandler(uv_work_t *req) {
 	char buf[128];
-	while(fgets(buf, 128, stdin)) {
+	while(cin.getline(buf,128)) {
 		uv_mutex_lock(&lua_mutex);
 		lua_getglobal(L,lua_cmd_type_name[L_onError]);
 		lua_getglobal(L,lua_cmd_type_name[L_onCommand]);
@@ -627,7 +627,7 @@ int tcp_connect(const char* ip, int port)
 	return uv_tcp_connect(pconnect_req, ptcp_client,server_addr,connect_cb);
 }
 
-void encrypt(char *str, int len) 
+void iencrypt(char *str, int len)
 {
 	int i;
 	for (i = 0; i < len; i++) {

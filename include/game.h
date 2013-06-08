@@ -17,7 +17,7 @@
 
 
 #include <iostream>
-#include <stdio.h>
+//#include <stdio.h>
 #include <assert.h>
 #include "stdlib.h"
 #include "string.h"
@@ -146,7 +146,7 @@ int listen_port(int port);
 int tcp_connect(const char* ip, int port);
 
 //void call_luarpc(int type, char* json_cmd);
-void encrypt(char *str, int len);
+void iencrypt(char *str, int len);
 void unencrypt(char *str, int len);
 char* compress(char *str);
 char* uncompress(char *str);
