@@ -62,7 +62,7 @@ using namespace std;
 #else
 #define ACCESS access
 #define MKDIR(a) mkdir((a),0755)
-#difine MYLOG(level) LOG(level)
+#define MYLOG(level) LOG(level)
 #endif
 
 
