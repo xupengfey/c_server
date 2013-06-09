@@ -5,7 +5,7 @@ local mSys = require "system.sys"
 local mTimer = require "system.timer"
 
 
-local ip = "127.0.0.1"
+local ip = "192.168.0.63"
 local listenPort = "8000"
 
 
