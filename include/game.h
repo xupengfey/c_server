@@ -37,6 +37,9 @@ extern "C" {
 	#include "lua/lauxlib.h"
 }
 
+#ifdef _DEBUG
+//#include <vld.h>
+#endif
 
 using namespace std;
 

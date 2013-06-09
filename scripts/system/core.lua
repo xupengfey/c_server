@@ -54,7 +54,7 @@ function L_onRPC( type,sockId,args )
 		func = nc_rpc_map[funName]
 	end	
 	if func ~= nil then
-		func(unpack(args))
+		func(sockId, unpack(args))
 	else	
 		print(funName .. " not register")
 	end	

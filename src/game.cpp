@@ -134,8 +134,8 @@ void do_read(int type,uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 					sock->lenth = (sock->lenth << 8) + (unsigned char)(buf.base[i]);
 				} else  {
 					//printf("##head end len=%d\n",sock->lenth);
-					if (type == 1 && sock->lenth > 1000000000 ) {
-						MYLOG(ERROR) << "data too large error sock=" << sock->sock_id << endl;
+					if (type == 1 && sock->lenth > (1<<28) ) {
+						MYLOG(ERROR) << "data too large error sock=" << sock->sock_id << " len:" << sock->lenth << endl;
 						free(buf.base);
 						goto DEL;
 					}
@@ -323,6 +323,10 @@ void sendHandler(uv_work_t *req) {
 		int data_len = send_buf->data_len + 1; // +1 协议
 		int buf_len = data_len + 4; // +4 包长度 +1 协议
 		char *new_buf = (char*)malloc(buf_len);
+		if (new_buf == NULL) {
+			MYLOG(ERROR) << "malloc failed in sendHandler len:" << buf_len << endl;
+			continue;
+		}
 		for(i=3; i>=0; i--) {
 			new_buf[i] = data_len % (1<<8);
 			data_len = data_len >> 8;
