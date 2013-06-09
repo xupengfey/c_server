@@ -303,7 +303,8 @@ void rpcHandler(uv_work_t *req) {
 
 
 void after_send(uv_write_t* req, int status){
-	if (req) {
+	MYLOG(INFO) << "after_send status:" << status << endl;
+	if (status == 0 && req) {
 		SendDataBuff* psend_data_buf =  (SendDataBuff*)req->data;
 		psend_data_buf->num --;
 		free_send_req(req);
