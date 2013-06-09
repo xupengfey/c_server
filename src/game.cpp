@@ -348,7 +348,7 @@ void sendHandler(uv_work_t *req) {
 					sock = c_sockid_map[send_buf->psock[i]];
 					if (sock) {
 						if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
-							psenddata_buff->num --;
+							//psenddata_buff->num --;
 						}
 					} else {
 						psenddata_buff->num --;
@@ -360,7 +360,7 @@ void sendHandler(uv_work_t *req) {
 				for(; it != client_map.end(); it++) {
 					sock = it->second;
 					if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
-							psenddata_buff->num --;
+							//psenddata_buff->num --;
 						}
 				}
 			}
@@ -378,7 +378,7 @@ void sendHandler(uv_work_t *req) {
 						} else {
 						}
 					} else {
-						psenddata_buff->num --;
+						//psenddata_buff->num --;
 					}
 				}
 			} else {
@@ -387,7 +387,7 @@ void sendHandler(uv_work_t *req) {
 				for(; it != nc_map.end(); it++) {
 					sock = it->second;
 					if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
-						psenddata_buff->num --;
+						//psenddata_buff->num --;
 					} else {
 						
 					}
