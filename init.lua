@@ -13,13 +13,13 @@ local listenPort = "8000"
 function send( ... )
 	print("send data")
 	local data = {}
-	-- local num = math.random(10000)
-	local num = 900000
+	local num = math.random(100)
+	-- local num = 900000
 	for i=1,num do
 		table.insert(data, "adfaklfjakdf;asdkf;akdfal;kdf';")
 	end	
-	mSys.callNc(1, "funcName", data)
-	mTimer.setTimeOut(send,math.random(0,200))
+	mSys.callNc(1, "perfTest", data)
+	mTimer.setTimeOut(send,math.random(0,100))
 end
 
 

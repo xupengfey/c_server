@@ -9,8 +9,18 @@
 local C_senddata,C_broadcast,C_broadcastall,C_connect,C_listen,C_connectmysql,C_query,C_escapedStr,cjson,table,cbFunc
 	= C_senddata,C_broadcast,C_broadcastall,C_connect,C_listen,C_connectmysql,C_query,C_escapedStr,cjson,table,cbFunc
 
+local client_rpc_map = client_rpc_map
+local nc_rpc_map = nc_rpc_map	
+
 module "system.sys"
 
+function regClientFunc( funcName,func )
+	client_rpc_map[funcName] = func
+end
+
+function regNcFunc( funcName,func )
+	regNcFunc[funcName] = func
+end
 
 
 function callClient(sockId, funcName, ...)

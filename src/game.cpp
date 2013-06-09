@@ -43,12 +43,15 @@ void free_rpc_buf(RpcQueBuff *pbuf)
 
 void free_send_req(uv_write_t *req)
 {	
-	SendDataBuff* psend_data_buf =  (SendDataBuff*)req->data;
-	if (psend_data_buf && psend_data_buf->num == 0) {
-		free(psend_data_buf->puv_buf->base);
-		free(psend_data_buf->puv_buf);
-		free(psend_data_buf);
-		free(req);
+	if (req) {
+		SendDataBuff* psend_data_buf =  (SendDataBuff*)req->data;
+		if (psend_data_buf && psend_data_buf->num == 0) {
+			free(psend_data_buf->puv_buf->base);
+			free(psend_data_buf->puv_buf);
+			free(psend_data_buf);
+			free(req);
+			req = NULL;
+		}
 	}
 }
 
@@ -300,9 +303,11 @@ void rpcHandler(uv_work_t *req) {
 
 
 void after_send(uv_write_t* req, int status){
-	SendDataBuff* psend_data_buf =  (SendDataBuff*)req->data;
-	psend_data_buf->num --;
-	free_send_req(req);
+	if (req) {
+		SendDataBuff* psend_data_buf =  (SendDataBuff*)req->data;
+		psend_data_buf->num --;
+		free_send_req(req);
+	}
 }
 
 void sendHandler(uv_work_t *req) {

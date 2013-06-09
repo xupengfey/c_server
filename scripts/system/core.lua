@@ -46,14 +46,20 @@ function L_onRPC( type,sockId,args )
 	print("L_onRPC",type,sockId,args)
 	-- printTable(args)
 	local funName = table.remove(args,1)
+	print("rpc func name", funName)
 	local func
 	if type == 1 then
 		func = client_rpc_map[funName]
 	else
 		func = nc_rpc_map[funName]
 	end	
-	assert(func ~= nil, funName .. " not register")	
-	func(unpack(args))
+	if func ~= nil then
+		func(unpack(args))
+	else	
+		print(funName .. " not register")
+	end	
+
+	
 end
 
 function L_onConnected( sockId)
