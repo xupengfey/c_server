@@ -1,5 +1,4 @@
-c_server
-c_server.exe
+core.*
 logs
 Debug
 Release
