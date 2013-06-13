@@ -1,3 +1,4 @@
+lua_server*
 core.*
 logs
 Debug
