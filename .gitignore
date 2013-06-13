@@ -1,0 +1,9 @@
+c_server
+c_server.exe
+logs
+Debug
+Release
+ipch
+c_server.sdf
+c_server.suo
+c_server.opensdf
