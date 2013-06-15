@@ -1,7 +1,12 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "c_server", "c_server.vcxproj", "{67566B82-1C92-3C16-07DE-F89FB49DD372}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "c_server", "c_server.vcxproj", "{32FFFB08-255F-CE21-F4F3-BFB233BF9338}"
+	ProjectSection(ProjectDependencies) = postProject
+		{33066374-88CB-CB8D-15DA-61032886329A} = {33066374-88CB-CB8D-15DA-61032886329A}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libuv", "..\libuv\libuv.vcxproj", "{33066374-88CB-CB8D-15DA-61032886329A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -9,10 +14,14 @@ Global
 		Release|Win32 = Release|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{67566B82-1C92-3C16-07DE-F89FB49DD372}.Debug|Win32.ActiveCfg = Debug|Win32
-		{67566B82-1C92-3C16-07DE-F89FB49DD372}.Debug|Win32.Build.0 = Debug|Win32
-		{67566B82-1C92-3C16-07DE-F89FB49DD372}.Release|Win32.ActiveCfg = Release|Win32
-		{67566B82-1C92-3C16-07DE-F89FB49DD372}.Release|Win32.Build.0 = Release|Win32
+		{32FFFB08-255F-CE21-F4F3-BFB233BF9338}.Debug|Win32.ActiveCfg = Debug|Win32
+		{32FFFB08-255F-CE21-F4F3-BFB233BF9338}.Debug|Win32.Build.0 = Debug|Win32
+		{32FFFB08-255F-CE21-F4F3-BFB233BF9338}.Release|Win32.ActiveCfg = Release|Win32
+		{32FFFB08-255F-CE21-F4F3-BFB233BF9338}.Release|Win32.Build.0 = Release|Win32
+		{33066374-88CB-CB8D-15DA-61032886329A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{33066374-88CB-CB8D-15DA-61032886329A}.Debug|Win32.Build.0 = Debug|Win32
+		{33066374-88CB-CB8D-15DA-61032886329A}.Release|Win32.ActiveCfg = Release|Win32
+		{33066374-88CB-CB8D-15DA-61032886329A}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

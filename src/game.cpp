@@ -1,6 +1,7 @@
 
 #include "game.h"
 
+static char global_protocol = (1 << 6) | (1 << 4);
 MYSQL* pmysql;
 static lua_State* L;
 static uv_mutex_t lua_mutex;
@@ -235,6 +236,32 @@ DEL:
 	uv_close((uv_handle_t*)handle, on_close);	
 }
 
+void closeSocket(int type, int sock_id)
+{
+	Sock *sock = NULL;
+	if (type == 1) {
+		uv_rwlock_wrlock(&client_map_rwlock);
+		sock = c_sockid_map[sock_id];
+		if (sock) {
+			client_map.erase(sock->handle);
+			c_sockid_map.erase(sock->sock_id);
+		}
+		uv_rwlock_wrunlock(&client_map_rwlock);
+	} else {
+		uv_rwlock_wrlock(&nc_map_rwlock);
+		sock = nc_sockid_map[sock_id];
+		if (sock) {
+			nc_map.erase(sock->handle);
+			nc_sockid_map.erase(sock->sock_id);
+		}
+		uv_rwlock_wrunlock(&nc_map_rwlock);
+	}
+
+	if (sock) {
+		uv_close((uv_handle_t*)sock->handle, on_close);
+	}
+}
+
 
 
 
@@ -263,22 +290,31 @@ void rpcHandler(uv_work_t *req) {
 		RpcQueBuff* pbuf = rpc_queue.front();
 		rpc_queue.pop();
 		uv_mutex_unlock(&rpc_queue_mutex);
-
+		char *dest;
+		uLong dest_len;
+		int ret;
 		char protocol = pbuf->protocol;
 		// 根据protocol生成cmd
-		if (protocol & (1<<6)) {
+		if (IS_ENCRYPT(protocol)) {
 			// 解密
-			unencrypt(pbuf->data,pbuf->data_len);
+			MYLOG(INFO) << "unencrypt" << endl;
+			iunencrypt(pbuf->data,pbuf->data_len);
 		}
 
-		if (protocol & (1<<4)) {
+		if (IS_COMPRESS(protocol)) {
 			// 解压缩
+			MYLOG(INFO) << "uncompress" << endl;
+			dest_len = *(uLong*)pbuf->data;
+			dest = (char *)malloc(dest_len);
+			ret = uncompress((Bytef *)dest, &dest_len, (Bytef *)pbuf->data+sizeof(uLong), pbuf->data_len-sizeof(uLong));
+			if (ret != Z_OK) {
+				MYLOG(ERROR) << "uncompress error ret=" << ret << endl;
+				free(dest);
+				free_rpc_buf(pbuf);
+				continue;
+			}
 		}
 
-		if (protocol & 1) {
-			// amf协议
-		}
-		
 		uv_mutex_lock(&lua_mutex);
 		//printf("call_luarpc stack top %d\n",lua_gettop(L));
 		lua_getglobal(L,lua_cmd_type_name[L_onError]);
@@ -286,8 +322,18 @@ void rpcHandler(uv_work_t *req) {
 		lua_pushinteger(L,pbuf->dest_type);
 		lua_pushinteger(L,pbuf->sock_id);
 		if (protocol & 1) {
+			// amf协议
 		} else {
-			json_decode(L, pbuf->data,pbuf->data_len);
+			ret = json_decode(L, dest, dest_len);
+			free(dest);
+			if (ret != 0) {
+				MYLOG(ERROR) << "json_decode error ret=" << ret << endl;
+				lua_pop(L,lua_gettop(L));
+				uv_mutex_unlock(&lua_mutex);
+				free_rpc_buf(pbuf);
+				continue;
+			}
+			
 		}
 		if (lua_pcall(L,3,0,1) == 0) {
 			lua_pop(L,1);
@@ -319,20 +365,48 @@ void sendHandler(uv_work_t *req) {
 		send_queue.pop();
 		uv_mutex_unlock(&send_queue_mutex);
 
+		uLong dest_len = 0;
+		char *dest = NULL;
+		int ret = 0;
+		if (IS_COMPRESS(global_protocol)) {
+			MYLOG(INFO) << "compress" << endl;
+			dest_len = compressBound((uLong)send_buf->data_len);
+			dest = (char *)malloc(dest_len+sizeof(uLong));
+			*(uLong*)dest = send_buf->data_len;
+
+			ret = compress((Bytef *)dest+sizeof(uLong), &dest_len, (Bytef *)send_buf->data, (uLong)send_buf->data_len);
+
+			if (ret != Z_OK) {
+				MYLOG(ERROR) << "compress error ret=" << ret << endl;
+				free_send_queue(send_buf);
+				free(dest);
+				continue;
+			}
+	
+		}
+
+		if (IS_ENCRYPT(global_protocol)) {
+			MYLOG(INFO) << "encrypt" << endl;
+			iencrypt(dest, dest_len+sizeof(uLong));
+		}
+
 		int i;
-		int data_len = send_buf->data_len + 1; // +1 协议
+		int data_len = dest_len+sizeof(uLong) + 1; // +1 协议
 		int buf_len = data_len + 4; // +4 包长度 +1 协议
 		char *new_buf = (char*)malloc(buf_len);
 		if (new_buf == NULL) {
 			MYLOG(ERROR) << "malloc failed in sendHandler len:" << buf_len << endl;
+			free_send_queue(send_buf);
+			free(dest);
 			continue;
 		}
 		for(i=3; i>=0; i--) {
 			new_buf[i] = data_len % (1<<8);
 			data_len = data_len >> 8;
 		}
-		new_buf[4] = '\0'; //协议
-		memcpy(new_buf+5, send_buf->data, send_buf->data_len);
+		new_buf[4] = global_protocol; //协议
+		memcpy(new_buf+5, dest, buf_len-5);
+		free(dest);
 
 		SendDataBuff *psenddata_buff = (SendDataBuff*)calloc(sizeof(SendDataBuff), 1);
 		psenddata_buff->puv_buf = (uv_buf_t*)malloc(sizeof(uv_buf_t));
@@ -647,26 +721,47 @@ void iencrypt(char *str, int len)
 		str[i] = str[i] ^ (i%7);
 	}
 }
-void unencrypt(char *str, int len)
+void iunencrypt(char *str, int len)
 {
 	int i;
 	for (i = 0; i < len; i++) {
 		str[i] = str[i] ^ (i%7);
 	}
 }
-char* compress(char *str);
-char* uncompress(char *str);
+char* icompress(char *source, uLong source_len)
+{
+	uLong dest_len = compressBound(source_len);
+	char *dest = (char *)malloc(dest_len+sizeof(uLong));
+	*(uLong*)dest = source_len;
 
-void json_encode(lua_State* L) {
-	lua_getglobal(L,lua_cmd_type_name[L_encode]);
-	lua_insert(L,-2);
-	lua_pcall(L,1,1,0);
+	int ret = compress((Bytef *)dest+sizeof(uLong), &dest_len, (Bytef *)source, source_len);
+
+	if (ret != Z_OK) {
+		MYLOG(ERROR) << "icompress error " << ret << endl;
+	}
+	return dest;
+}
+char* iuncompress(char *source, uLong source_len)
+{
+	uLong dest_len = *(uLong*)source;
+	char *dest = (char *)malloc(dest_len);
+	int ret = uncompress((Bytef *)dest, &dest_len, (Bytef *)source, source_len);
+	if (ret != Z_OK) {
+		MYLOG(ERROR) << "uncompress error " << ret << endl;
+	}
+	return dest;
 }
 
-void json_decode(lua_State* L, char*str, int len) {
+int json_encode(lua_State* L) {
+	lua_getglobal(L,lua_cmd_type_name[L_encode]);
+	lua_insert(L,-2);
+	return lua_pcall(L,1,1,0);
+}
+
+int json_decode(lua_State* L, const char* str, int len) {
 	lua_getglobal(L,lua_cmd_type_name[L_decode]);
 	lua_pushlstring(L, str, len);
-	lua_pcall(L,1,1,0);
+	return lua_pcall(L,1,1,0);
 }
 
 

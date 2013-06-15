@@ -188,17 +188,17 @@ int C_query(lua_State* L)
 	return 1;
 }
 
-int C_escapedStr(lua_State* L)
+int C_escapedstr(lua_State* L)
 {
 	if (check_args(L, 1) == false) {
 		return 0;
 	}
 	size_t len;
-	const char *sql = lua_tolstring(L,1,&len);
-	char *new_sql = (char*)malloc(len*2);
-	size_t new_len = mysql_real_escape_string(pmysql,new_sql,sql,len);
-	lua_pushlstring(L,new_sql,new_len);
-	free(new_sql);
+	const char *json_str = lua_tolstring(L,1,&len);
+	char *new_str = (char*)malloc(len*2);
+	size_t new_len = mysql_real_escape_string(pmysql,new_str,json_str,len);
+	lua_pushlstring(L,new_str,new_len);
+	free(new_str);
 	return 1;
 }
 
@@ -226,6 +226,55 @@ int C_log(lua_State* L)
 	return 0;
 }
 
+int C_close(lua_State* L)
+{
+	if (check_args(L, 2) == false) {
+		return 0;
+	}
+	int type = lua_tointeger(L,1);
+	int sock_id = lua_tointeger(L,2);
+	closeSocket(type, sock_id);
+	return 0;
+}
+
+// encode and compress
+int C_transfer(lua_State* L)
+{
+	if (check_args(L, 1) == false) {
+		return 0;
+	}	
+	size_t data_len;
+	json_encode(L);
+	const char *json_str = lua_tolstring(L,1,&data_len);
+	char *new_str = (char*)malloc(data_len*2);
+	if (!new_str) {
+		return 1;
+	}
+
+
+	size_t new_len = mysql_real_escape_string(pmysql,new_str,json_str,data_len);
+
+	size_t destLen = compressBound(new_len); 
+		char *dest = (char *)malloc(destLen + 8);
+		//*(uLong*)dest = sourceLen;
+		//int ret;
+
+		//int ret = compress((Bytef *)dest+1, &destLen, (Bytef *)new_str, new_len);
+		//if (ret == Z_OK) {
+		//	lua_pushlstring(lua_vm, dest, destLen+8);
+		//} else {
+		//	LOG(ERROR) << "compress error " << ret;
+		//	lua_pushnil(lua_vm);
+		//}
+		//delete[] dest;
+
+
+	return 1;
+
+}
+
+
+
 
 void registerAPI(lua_State* L)
 {
@@ -236,7 +285,8 @@ void registerAPI(lua_State* L)
 	lua_register(L,"C_listen",		C_listen);
 	lua_register(L,"C_connectmysql",		C_connectmysql);
 	lua_register(L,"C_query",		C_query);
-	lua_register(L,"C_escapedStr",		C_escapedStr);
+	lua_register(L,"C_escapedstr",		C_escapedstr);
 	lua_register(L,"C_log",		C_log);
+	lua_register(L,"C_close",		C_close);
 }
 

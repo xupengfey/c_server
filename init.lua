@@ -1,11 +1,11 @@
 package.path = "scripts/?.lua;"
-print("load test.lua")
+print("load init.lua")
 require "system.core"
 local mSys = require "system.sys"
 local mTimer = require "system.timer"
 
 
-local ip = "192.168.0.63"
+local ip = "127.0.0.1"
 local listenPort = "8000"
 
 

@@ -35,6 +35,7 @@ extern "C" {
 	#include "lua/lua.h"
 	#include "lua/lualib.h"
 	#include "lua/lauxlib.h"
+	#include "zlib.h"
 }
 
 #ifdef _DEBUG
@@ -67,6 +68,10 @@ using namespace std;
 #define MKDIR(a) mkdir((a),0755)
 #define MYLOG(level) LOG(level)
 #endif
+
+#define IS_ENCRYPT(p) (p & (1<<6))
+#define IS_COMPRESS(p) (p & (1<<4))
+
 
 
 
@@ -147,20 +152,21 @@ void on_new_connection(uv_stream_t *server, int status);
 void senddata(int sock_id, int type, const char* str);
 int listen_port(int port);
 int tcp_connect(const char* ip, int port);
+void closeSocket(int type, int sock_id);
 
 //void call_luarpc(int type, char* json_cmd);
 void iencrypt(char *str, int len);
-void unencrypt(char *str, int len);
-char* compress(char *str);
-char* uncompress(char *str);
-void json_encode(lua_State* L);
-void json_decode(lua_State* L, char*str, int len);
+void iunencrypt(char *str, int len);
+//char* icompress(const char *source, uLong source_len);
+//char* iuncompress(const char *source, uLong source_len);
+int json_encode(lua_State* L);
+int json_decode(lua_State* L, const char* str, int len);
 
 
 
 void registerAPI(lua_State* L);
 
-int json_decode(lua_State *l);
+//int json_decode(lua_State *l);
 int luaopen_cjson(lua_State *l);
 
 #endif
