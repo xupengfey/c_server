@@ -21,22 +21,25 @@ function onPerfTest( sockId,... )
 end
 mSys.regClientFunc("perfTest", onPerfTest)
 
--- function send( ... )
-	-- print("send data\n")
-	-- local data = {}
-	-- local num = math.random(100)
-	-- for i=1,num do
-		-- table.insert(data, "adfaklfjakdf;asdkf;akdfal;kdf';")
-	-- end	
-	-- mSys.callNc(1, "perfTest", data)
-	-- mTimer.setTimeOut(send,math.random(0,100))
--- end
+function send( nc )
+	print("send",nc)
+	local data = {}
+	local num = math.random(100)
+	for i=1,num do
+		table.insert(data, "adfaklfjakdf;asdkf;akdfal;kdf';")
+	end	
+	mSys.callNc(nc, "perfTest", data)
+	mSys.callNc(nc, "perfTest", data)
+	mSys.callNc(nc, "perfTest", data)
+	mTimer.setTimeOut(send,math.random(0,100),nc)
+end
 
 
--- function test_sendData( ... )
-	-- mSys.connect(ip, listenPort)
-	-- mTimer.setTimeOut(send,100)
--- end
+function test_sendData( nc )
+	mSys.connect(ip, listenPort)
+	mTimer.setTimeOut(send,100,nc)
+end
 
-
--- test_sendData()
+for i=1,10 do
+test_sendData(i)
+end

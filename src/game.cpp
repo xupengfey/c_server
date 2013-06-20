@@ -2,13 +2,19 @@
 #include "game.h"
 
 static char global_protocol = (1 << 6) | (1 << 4);
+uv_loop_t* tcp_loop;
 MYSQL* pmysql;
 static lua_State* L;
 static uv_mutex_t lua_mutex;
 
+uv_sem_t tcp_loop_sem;
+
 static std::queue<RpcQueBuff* > rpc_queue;
 static uv_mutex_t rpc_queue_mutex;
 static uv_sem_t rpc_queue_sem;
+
+static queue<ConQueBuff* > con_queue;
+static uv_mutex_t con_queue_mutex;
 
 std::queue<SendQueBuff* > send_queue;
 uv_mutex_t send_queue_mutex;
@@ -30,6 +36,8 @@ static std::map<int, Sock*> nc_sockid_map;
 static uv_rwlock_t nc_map_rwlock;
 static int nc_sock_id;
 static uv_mutex_t nc_sock_id_mutex;
+
+uv_async_t async;
 
 
 uv_buf_t alloc_buffer(uv_handle_t* handle, size_t suggested_size) {
@@ -284,6 +292,9 @@ void tickHandler(uv_timer_t *req, int status) {
 
 void rpcHandler(uv_work_t *req) {
 	while (true) {
+
+		
+		
 		uv_sem_wait(&rpc_queue_sem);
 		
 		uv_mutex_lock(&rpc_queue_mutex);
@@ -294,15 +305,15 @@ void rpcHandler(uv_work_t *req) {
 		uLong dest_len;
 		int ret;
 		char protocol = pbuf->protocol;
-		// ∏˘æ›protocol…˙≥…cmd
+		// Ê†πÊçÆprotocolÁîüÊàêcmd
 		if (IS_ENCRYPT(protocol)) {
-			// Ω‚√‹
+			// Ëß£ÂØÜ
 			MYLOG(INFO) << "unencrypt" << endl;
 			iunencrypt(pbuf->data,pbuf->data_len);
 		}
 
 		if (IS_COMPRESS(protocol)) {
-			// Ω‚—πÀı
+			// Ëß£ÂéãÁº©
 			MYLOG(INFO) << "uncompress" << endl;
 			dest_len = *(uLong*)pbuf->data;
 			dest = (char *)malloc(dest_len);
@@ -322,7 +333,7 @@ void rpcHandler(uv_work_t *req) {
 		lua_pushinteger(L,pbuf->dest_type);
 		lua_pushinteger(L,pbuf->sock_id);
 		if (protocol & 1) {
-			// amf–≠“È
+			// amfÂçèËÆÆ
 		} else {
 			ret = json_decode(L, dest, dest_len);
 			free(dest);
@@ -357,10 +368,21 @@ void after_send(uv_write_t* req, int status){
 	}
 }
 
-void sendHandler(uv_work_t *req) {
+
+
+// void sendHandler(uv_work_t *req) {
+void sendHandler(uv_async_t *handle, int status ) {
+	 // uv_sem_wait(&tcp_loop_sem);
+	 // uv_run(tcp_loop, UV_RUN_NOWAIT);
+	//uv_run(tcp_loop, UV_RUN_ONCE);
 	while (true) {
-		uv_sem_wait(&send_queue_sem);
+		
+		// uv_sem_wait(&send_queue_sem);
 		uv_mutex_lock(&send_queue_mutex);
+		 if (send_queue.size() == 0) {
+		 	uv_mutex_unlock(&send_queue_mutex);
+		 	return;
+		 }
 		SendQueBuff* send_buf = send_queue.front();
 		send_queue.pop();
 		uv_mutex_unlock(&send_queue_mutex);
@@ -391,8 +413,8 @@ void sendHandler(uv_work_t *req) {
 		}
 
 		int i;
-		int data_len = dest_len+sizeof(uLong) + 1; // +1 –≠“È
-		int buf_len = data_len + 4; // +4 ∞¸≥§∂» +1 –≠“È
+		int data_len = dest_len+sizeof(uLong) + 1; // +1 ÂçèËÆÆ
+		int buf_len = data_len + 4; // +4 ÂåÖÈïøÂ∫¶ +1 ÂçèËÆÆ
 		char *new_buf = (char*)malloc(buf_len);
 		if (new_buf == NULL) {
 			MYLOG(ERROR) << "malloc failed in sendHandler len:" << buf_len << endl;
@@ -404,7 +426,7 @@ void sendHandler(uv_work_t *req) {
 			new_buf[i] = data_len % (1<<8);
 			data_len = data_len >> 8;
 		}
-		new_buf[4] = global_protocol; //–≠“È
+		new_buf[4] = global_protocol; //ÂçèËÆÆ
 		memcpy(new_buf+5, dest, buf_len-5);
 		free(dest);
 
@@ -413,8 +435,8 @@ void sendHandler(uv_work_t *req) {
 		psenddata_buff->puv_buf->base = new_buf;
 		psenddata_buff->puv_buf->len = buf_len;
 		//psenddata_buff->num = send_buf->vec_sock.size();
-		uv_write_t* req = (uv_write_t*) malloc(sizeof(uv_write_t));
-		req->data = psenddata_buff;
+		uv_write_t* write_req = (uv_write_t*) malloc(sizeof(uv_write_t));
+		write_req->data = psenddata_buff;
 
 		Sock* sock = NULL;
 
@@ -426,8 +448,8 @@ void sendHandler(uv_work_t *req) {
 				for (i=1; i <= psenddata_buff->num; i++ ) {
 					sock = c_sockid_map[send_buf->psock[i]];
 					if (sock) {
-						if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
-							//psenddata_buff->num --;
+						if (uv_write(write_req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
+							psenddata_buff->num --;
 						}
 					} else {
 						psenddata_buff->num --;
@@ -438,8 +460,8 @@ void sendHandler(uv_work_t *req) {
 				std::map<uv_tcp_t*, Sock*>::iterator it=client_map.begin();
 				for(; it != client_map.end(); it++) {
 					sock = it->second;
-					if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
-							//psenddata_buff->num --;
+					if (uv_write(write_req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
+							psenddata_buff->num --;
 						}
 				}
 			}
@@ -452,12 +474,12 @@ void sendHandler(uv_work_t *req) {
 					sock = nc_sockid_map[send_buf->psock[i]];
 					
 					if (sock) {
-						if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
+						if (uv_write(write_req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
 							psenddata_buff->num --;
 						} else {
 						}
 					} else {
-						//psenddata_buff->num --;
+						psenddata_buff->num --;
 					}
 				}
 			} else {
@@ -465,8 +487,8 @@ void sendHandler(uv_work_t *req) {
 				std::map<uv_tcp_t*, Sock*>::iterator it=nc_map.begin();
 				for(; it != nc_map.end(); it++) {
 					sock = it->second;
-					if (uv_write(req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
-						//psenddata_buff->num --;
+					if (uv_write(write_req, (uv_stream_t*)sock->handle, psenddata_buff->puv_buf, 1, after_send)) {	
+						psenddata_buff->num --;
 					} else {
 						
 					}
@@ -475,7 +497,7 @@ void sendHandler(uv_work_t *req) {
 			uv_rwlock_rdunlock(&nc_map_rwlock);
 		}
 		free_send_queue(send_buf);
-		free_send_req(req);
+		free_send_req(write_req);
 
 	}
 
@@ -600,6 +622,7 @@ void dbHandler(uv_work_t *req) {
 
 int listen_port(int port)
 {
+
 	uv_tcp_t* ptcp_server = (uv_tcp_t*)malloc(sizeof(uv_tcp_t));
 	uv_tcp_init(uv_default_loop(), ptcp_server);
 	struct sockaddr_in bind_addr = uv_ip4_addr("0.0.0.0", port);
@@ -610,6 +633,7 @@ int listen_port(int port)
 		free(ptcp_server);
         return 1;
     }
+
 	return 0;
 }
 
@@ -637,6 +661,7 @@ void on_new_connection(uv_stream_t *server, int status) {
 
     uv_tcp_t *client = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));
     uv_tcp_init(uv_default_loop(), client);
+    // uv_sem_post(&tcp_loop_sem);
     if (uv_accept(server, (uv_stream_t*) client) == 0) {
 		Sock* new_sock = (Sock*)malloc(sizeof(Sock));
 		memset(new_sock,0,sizeof(*new_sock));
@@ -660,6 +685,13 @@ void on_new_connection(uv_stream_t *server, int status) {
 		}
 		uv_mutex_unlock(&lua_mutex);
         uv_read_start((uv_stream_t*)client, alloc_buffer, read_client_cb);
+
+  //       ConQueBuff *pConQueBuff = (ConQueBuff*)malloc(sizeof(ConQueBuff));
+		// pConQueBuff->handle = (uv_stream_t *)client;
+		// pConQueBuff->type = 1;
+		// uv_mutex_lock(&con_queue_mutex);
+		// con_queue.push(pConQueBuff);
+		// uv_mutex_unlock(&con_queue_mutex);
 
     }
     else {
@@ -700,7 +732,13 @@ void connect_cb(uv_connect_t* req, int status) {
 	uv_mutex_unlock(&lua_mutex);
 
 	uv_read_start(req->handle, alloc_buffer, read_nc_cb); 
-	free(req);
+	// ConQueBuff *pConQueBuff = (ConQueBuff*)malloc(sizeof(ConQueBuff));
+	// pConQueBuff->handle = req->handle;
+	// pConQueBuff->type = 2;
+	// uv_mutex_lock(&con_queue_mutex);
+	// con_queue.push(pConQueBuff);
+	// uv_mutex_unlock(&con_queue_mutex);
+	// free(req);
 
 }
 //uv_connect_t connect_req;
@@ -710,6 +748,7 @@ int tcp_connect(const char* ip, int port)
 	uv_connect_t* pconnect_req = (uv_connect_t *)malloc(sizeof(uv_connect_t));
 	uv_tcp_t* ptcp_client = (uv_tcp_t *)malloc(sizeof(uv_tcp_t));
 	uv_tcp_init(uv_default_loop(), ptcp_client);
+	// uv_sem_post(&tcp_loop_sem);
 	struct sockaddr_in server_addr = uv_ip4_addr(ip, port);
 	return uv_tcp_connect(pconnect_req, ptcp_client,server_addr,connect_cb);
 }
@@ -765,6 +804,28 @@ int json_decode(lua_State* L, const char* str, int len) {
 }
 
 
+void conHandler() {
+	while(true) {
+		uv_mutex_lock(&con_queue_mutex);
+		if (con_queue.size() == 0) {
+			uv_mutex_unlock(&con_queue_mutex);
+			return;
+		}
+		ConQueBuff *pConQueBuff = con_queue.front();
+		con_queue.pop();
+		uv_mutex_unlock(&con_queue_mutex);
+		if (pConQueBuff->type == 1) {
+			uv_read_start((uv_stream_t*)pConQueBuff->handle, alloc_buffer, read_client_cb);
+		} else {
+			uv_read_start((uv_stream_t*)pConQueBuff->handle, alloc_buffer, read_nc_cb);
+		}
+		// free(pConQueBuff.handle);
+		free(pConQueBuff);
+	}
+}	
+
+
+
 int main(int argc, char** argv) {
 	// init the google glog library
 	google::InitGoogleLogging(argv[0]);
@@ -781,8 +842,13 @@ int main(int argc, char** argv) {
 
 	MYLOG(INFO) << "glog init ..." << endl;
 
+	tcp_loop = uv_loop_new();
+	uv_sem_init(&tcp_loop_sem, 0);
+
 
 	uv_mutex_init(&lua_mutex);
+	uv_mutex_init(&con_queue_mutex);
+
 	uv_mutex_init(&rpc_queue_mutex);
 	uv_sem_init(&rpc_queue_sem, 0);
 	uv_mutex_init(&send_queue_mutex);
@@ -798,7 +864,7 @@ int main(int argc, char** argv) {
 
 
 
-	// ∆Ù∂Ølua–Èƒ‚ª˙
+	// ÂêØÂä®luaËôöÊãüÊú∫
 	uv_mutex_lock(&lua_mutex);
 	L = luaL_newstate();
 	luaL_openlibs(L);
@@ -820,26 +886,27 @@ int main(int argc, char** argv) {
 	uv_mutex_unlock(&lua_mutex);
 
 	MYLOG(INFO) << "lua virtual machine starting ..." << endl;
-	// dotick ∂® ±∆˜
+	// dotick ÂÆöÊó∂Âô®
 	uv_timer_t timer_req;
 	uv_timer_init(uv_default_loop(), &timer_req);
 	uv_timer_start(&timer_req, tickHandler, 3000, 100);
 
-	// rpc œﬂ≥Ã
+	// rpc Á∫øÁ®ã
 	uv_work_t req_rpc;
 	uv_queue_work(uv_default_loop(), &req_rpc, rpcHandler, NULL);
 
-	// send œﬂ≥Ã
-	uv_work_t req_send;
-	uv_queue_work(uv_default_loop(), &req_send, sendHandler, NULL);
 
-	// db œﬂ≥Ã
+	uv_async_init(uv_default_loop(), &async, sendHandler);
+
+
+	// db Á∫øÁ®ã
 	uv_work_t req_db;
 	uv_queue_work(uv_default_loop(), &req_db, dbHandler, NULL);
 
-	// cmd œﬂ≥Ã
+	// cmd Á∫øÁ®ã
 	uv_work_t req_cmd;
 	uv_queue_work(uv_default_loop(), &req_cmd, cmdHandler, NULL);
+
 
 	MYLOG(INFO) << "server starting ..." << endl;
     return uv_run(uv_default_loop(), UV_RUN_DEFAULT);

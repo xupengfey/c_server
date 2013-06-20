@@ -118,6 +118,13 @@ typedef struct _Sock {
 
 }Sock,*PSock;
 
+typedef struct _ConQueBuff
+{
+	/* data */
+	uv_stream_t* handle;
+	int type;
+}ConQueBuff, *PConQueBuff;
+
 
 typedef struct _RpcQueBuff {
 	char protocol; // 0 json 1 amf3    01 加密类型 23 压缩类型 4567协议类型
@@ -162,7 +169,7 @@ void iunencrypt(char *str, int len);
 int json_encode(lua_State* L);
 int json_decode(lua_State* L, const char* str, int len);
 
-
+//void sendHandler();
 
 void registerAPI(lua_State* L);
 

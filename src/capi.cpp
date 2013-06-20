@@ -9,6 +9,8 @@ extern std::queue<SendQueBuff* > send_queue;
 extern uv_mutex_t send_queue_mutex;
 extern uv_sem_t send_queue_sem;
 
+extern uv_async_t async;
+
 bool check_args(lua_State* L, int argn)
 {
 	int n = lua_gettop(L);
@@ -54,6 +56,8 @@ int C_senddata(lua_State* L)
 	send_queue.push(buf);
 	uv_mutex_unlock(&send_queue_mutex);
 	uv_sem_post(&send_queue_sem);
+	uv_async_send(&async);
+	//sendHandler();
 	return 0;
 }
 
