@@ -1,14 +1,8 @@
--- lua_register(L,"C_senddata",		C_senddata);
--- lua_register(L,"C_broadcast",		C_broadcast);
--- lua_register(L,"C_broadcastall",		C_broadcastall);
--- lua_register(L,"C_connect",		C_connect);
--- lua_register(L,"C_listen",		C_listen);
--- lua_register(L,"C_connectmysql",		C_connectmysql);
--- lua_register(L,"C_query",		C_query);
--- lua_register(L,"C_escapedStr",		C_escapedStr);
-local C_senddata,C_broadcast,C_broadcastall,C_connect,C_listen,C_connectmysql,C_query,C_escapedStr,cjson,table,cbFunc
-	= C_senddata,C_broadcast,C_broadcastall,C_connect,C_listen,C_connectmysql,C_query,C_escapedStr,cjson,table,cbFunc
 
+local C_senddata,C_broadcast,C_broadcastall,C_connect,C_listen,C_connectmysql,C_query,C_escapedstr,cjson,table,cbFunc
+	= C_senddata,C_broadcast,C_broadcastall,C_connect,C_listen,C_connectmysql,C_query,C_escapedstr,cjson,table,cbFunc
+local type,print,assert 
+	= type,print,assert
 local client_rpc_map = client_rpc_map
 local nc_rpc_map = nc_rpc_map	
 
@@ -50,16 +44,23 @@ function listen( port )
 	return C_listen(port)
 end
 
+
+-- return 0 success 1 failed
 function dbConnect( server,user,pass,database,port )
 	return C_connectmysql(server,user,pass,database,port)
 end
 
 -- 异步
 function dbQuery( sql,cb )
+	assert(type(cb) == type(dbQuery))
 	table.insert(cbFunc, cb)
 	return C_query(sql)
 end
 
 function escapedStr( str )
-	return C_escapedStr(str)
+	return C_escapedstr(str)
+end
+
+function log( level,msg )
+	C_log(level,msg)
 end

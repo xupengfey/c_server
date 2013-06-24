@@ -91,5 +91,18 @@ function L_decode( str )
 	return cjson.decode(str)
 end
 
+function L_onCommand( cmd,file )
+	print("L_onCommand",cmd,file)
+	if file == "" then
+		file = "hotfix.lua"
+	end	
+	print("hotfix file",file)
+	if cmd == "load" then
+		dofile(file)
+	end	
+	-- f = loadstring(str)
+	-- f()
+end
+
 
 

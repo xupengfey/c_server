@@ -154,6 +154,8 @@ int C_connectmysql(lua_State* L)
 
 
    /* Connect to database */
+	int timeout = 1;                      //超时时间设置为3秒
+    mysql_options(pmysql,MYSQL_OPT_CONNECT_TIMEOUT,(const char *)&timeout);
 	pmysql = mysql_real_connect(pmysql, server,
          user, pass, database, port, NULL, 0);
 	if (pmysql) {
@@ -194,6 +196,7 @@ int C_query(lua_State* L)
 
 int C_escapedstr(lua_State* L)
 {
+	printf("C_escapedStr\n");
 	if (check_args(L, 1) == false) {
 		return 0;
 	}

@@ -41,5 +41,5 @@ function test_sendData( nc )
 end
 
 for i=1,10 do
-test_sendData(i)
+-- test_sendData(i)
 end

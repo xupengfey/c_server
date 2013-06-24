@@ -505,12 +505,18 @@ void sendHandler(uv_async_t *handle, int status ) {
 
 void cmdHandler(uv_work_t *req) {
 	char buf[128];
+	char cmd[8];
+	char fileName[64];
 	while(cin.getline(buf,128)) {
+		memset(cmd, 0, 8);
+		memset(fileName, 0, 64);
+		sscanf(buf, "%s %s", cmd, fileName);
 		uv_mutex_lock(&lua_mutex);
 		lua_getglobal(L,lua_cmd_type_name[L_onError]);
 		lua_getglobal(L,lua_cmd_type_name[L_onCommand]);
-		lua_pushstring(L,buf);
-		if (lua_pcall(L,1,0,1) == 0) {
+		lua_pushstring(L,cmd);
+		lua_pushstring(L,fileName);
+		if (lua_pcall(L,2,0,1) == 0) {
 			lua_pop(L,1);
 		} else {
 			lua_pop(L,2);
