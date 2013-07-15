@@ -301,7 +301,7 @@ void rpcHandler(uv_work_t *req) {
 		RpcQueBuff* pbuf = rpc_queue.front();
 		rpc_queue.pop();
 		uv_mutex_unlock(&rpc_queue_mutex);
-		char *dest;
+		char *dest = NULL;
 		uLong dest_len;
 		int ret;
 		char protocol = pbuf->protocol;
@@ -335,8 +335,12 @@ void rpcHandler(uv_work_t *req) {
 		if (protocol & 1) {
 			// amf协议
 		} else {
-			ret = json_decode(L, dest, dest_len);
-			free(dest);
+			if (dest == NULL) {
+				ret = json_decode(L, pbuf->data, pbuf->data_len);
+			} else {
+				ret = json_decode(L, dest, dest_len);
+				free(dest);
+			}
 			if (ret != 0) {
 				MYLOG(ERROR) << "json_decode error ret=" << ret << endl;
 				lua_pop(L,lua_gettop(L));

@@ -1,19 +1,15 @@
 
-local C_senddata,C_broadcast,C_broadcastall,C_connect,C_listen,C_connectmysql,C_query,C_escapedstr,cjson,table,cbFunc
-	= C_senddata,C_broadcast,C_broadcastall,C_connect,C_listen,C_connectmysql,C_query,C_escapedstr,cjson,table,cbFunc
-local type,print,assert 
-	= type,print,assert
 local client_rpc_map = client_rpc_map
 local nc_rpc_map = nc_rpc_map	
 
-module "system.sys"
+module ("system.sys",package.seeall)
 
 function regClientFunc( funcName,func )
 	client_rpc_map[funcName] = func
 end
 
 function regNcFunc( funcName,func )
-	regNcFunc[funcName] = func
+	nc_rpc_map[funcName] = func
 end
 
 
@@ -51,9 +47,9 @@ function dbConnect( server,user,pass,database,port )
 end
 
 -- 异步
-function dbQuery( sql,cb )
+function dbQuery( sql,cb,... )
 	assert(type(cb) == type(dbQuery))
-	table.insert(cbFunc, cb)
+	table.insert(cbFunc, {func=cb,params={...}})
 	return C_query(sql)
 end
 

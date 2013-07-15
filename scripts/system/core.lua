@@ -1,4 +1,10 @@
 local mTimer = require "system.timer"
+
+INFO = 0
+WARNING = 1
+ERROR = 2
+
+
 printTable = function(root)
 	if type(root) ~= "table" then
 		return
@@ -31,9 +37,9 @@ cbFunc = {}
 
 
 function L_onError(message)
-	C_log(2,"[Error]+++++++++++++++++++++++++++++++++++++++")
-	C_log(2,debug.traceback())
-	C_log(2,"[Error]---------------------------------------\n")
+	C_log(ERROR,"[Error]+++++++++++++++++++++++++++++++++++++++")
+	C_log(ERROR,debug.traceback())
+	C_log(ERROR,"[Error]---------------------------------------\n")
 
 end
 
@@ -77,8 +83,8 @@ end
 
 function L_onMysql( ret )
 	print("L_onMysql", tostring(ret))
-	local func = table.remove(cbFunc, 1)
-	func(ret)
+	local cbEntry = table.remove(cbFunc, 1)
+	cbEntry.func(ret, unpack(cbEntry.params))
 end
 function L_onCloseMysql( sockId)
 	print("L_onCloseMysql",sockId)
