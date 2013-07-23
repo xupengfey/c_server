@@ -5,10 +5,15 @@ local nc_rpc_map = nc_rpc_map
 module ("system.sys",package.seeall)
 
 function regClientFunc( funcName,func )
+	print("regClientFunc",funcName,func)
+	assert(type(funcName) == type(""))
+	assert(type(func) == "function")
 	client_rpc_map[funcName] = func
 end
 
 function regNcFunc( funcName,func )
+	assert(type(funcName) == type(""))
+	assert(type(func) == "function")
 	nc_rpc_map[funcName] = func
 end
 
@@ -24,10 +29,12 @@ end
 -- sockList
 -- 	{sockId,-}
 function broadCastToSockList( sockList,  funcName, ...)
+	print("broadCastToSockList")
 	return C_broadcast(sockList, 1, {funcName,...})
 end
 
 function broadcastToAll( funcName, ... )
+	print("broadcastToAll")
 	return C_broadcastall(1, {funcName,...})
 end
 

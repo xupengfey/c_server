@@ -4,7 +4,11 @@ require "system.core"
 local mSys = require "system.sys"
 local mTimer = require "system.timer"
 local mConfig = require "config"
+local mIndexData = require "logic.indexdata"
 
+
+
+math.randomseed(os.time())
 
 -- LISTENPORT = 8000
 -- DB_IP = "192.168.99.200"
@@ -16,15 +20,25 @@ local mConfig = require "config"
 local ret = mSys.dbConnect( mConfig.DB_IP,mConfig.DB_USER,mConfig.DB_PASSWD,
 	mConfig.DB_NAME,mConfig.DB_PORT )
 
-print("dbConnect ret",ret)
+
+
+assert(ret == 0, "dbConnect failed")
+
 
 print(type(mSys.dbConnect))
 printTable(mConfig)
 
--- local ip = "127.0.0.1"
--- local listenPort = "8000"
+require "logic.handler"
 
--- mSys.listen(listenPort)
+
+mSys.regNcFunc("testnc", function (  )
+	return
+end)
+
+-- local ip = "127.0.0.1"
+local listenPort = "8000"
+
+mSys.listen(listenPort)
 
 
 -- function send( ... )

@@ -11,7 +11,7 @@ data = {}
 
 
 -- 最多支持3重索引
-config = {
+local config = {
 	citycell = {"cityId", "cellId","hardLevel"},
 	citycell_creature = {"cityId", "cellId"},
 }

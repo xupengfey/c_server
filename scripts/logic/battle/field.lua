@@ -4,6 +4,8 @@ local mTeam = require("logic.battle.team")
 local battleType = require("logic.constants.BattleType")
 local battleMgr=require("logic.battle.battle")
 local battleData=require("logic.battle.data")
+local mChar = require "logic.character"
+local mSys = require "system.sys"
 module ("logic.battle.field")
 
 local MAX_COUNT=30
@@ -13,35 +15,46 @@ function createBattleField(id, mode, t1, t2)
 	bf.id = id
 	bf.mode = mode
 	bf.creatTime = os.time()
-	bf.resultList={}	
+	bf.enterBattleList={}   --是每个回个从牌堆取出来的卡牌列表
+	bf.resultList={}	    --播放列表
 	bf.playList = {}
 	bf.roundNum = 1
 	bf.team1 = t1
 	bf.team2 = t2
 	bf.status=battleType.FIELD_STATUS.INIT
+	bf.winnerId=0
 	return bf
 end
 
---flag=1 自动战斗
-function pvePointBattle(attackData, defendData,flag)
+--
+function pvePointBattle(attackData, defendData, callback, params)
 	local team1 = mTeam.initPlayerTeam(attackData,1)
 	local team2 = mTeam.initPlayerTeam(defendData,2)
-	if attackData.battle~=nil and attackData.battle.id~=nil then
-		return
-	end
-	local fid=#battleData.battleFieldList+1
+	-- if attackData.battle~=nil and attackData.battle.id~=nil then
+		-- return
+	-- end
+	-- local fid=#battleData.battleFieldList+1
 	local field=createBattleField(fid, battleType.BATTLE_TYPE.point, team1, team2)
-	if flag~=nil and flag==1 then
-		battleAuto(field)
-		return field
-	else
-		attackData.battle={}
-		attackData.battle.id=fid		
-		return field
-	end
+	
+	mTeam.addOneToCanditate(field,field.team1)	
+	mTeam.addOneToCanditate(field,field.team2)	
+
+
+	battleData.addBattle(field, callback, params)
+	-- if flag~=nil and flag==1 then
+		-- battleAuto(field)
+	-- else
+		-- mTeam.addOneToCanditate(bf.team1)		
+		-- attackData.battle={}
+		-- attackData.battle.id=fid		
+		-- return field
+	-- end
+	return field
 end
 
-function addCardToBattle(bf,index)
+function addCardToBattle(index,sockId)
+	local char = mChar.getCharBySocket(sockId)
+	local bf=battleData.getBattleBf(char.data.battleId)
 	local card=bf.team1.canditate[index]
 	if card~=nil then
 		card.candInd=index
@@ -51,9 +64,12 @@ function addCardToBattle(bf,index)
 	else
 		return false
 	end
+	mSys.callClient(sockId, "onAddCardToBattle",index)
 end
 
-function removeCardFromBattle(bf,cardId)
+function removeCardFromBattle(cardId,sockId)
+	local char = mChar.getCharBySocket(sockId)
+	local bf=battleData.getBattleBf(char.data.battleId)
 	local index=-1
 	for k,v in pairs(bf.team1.tempCards) do
 		if v.id==cardId then
@@ -68,27 +84,51 @@ function removeCardFromBattle(bf,cardId)
 	else
 		return false
 	end
+	mSys.callClient(sockId, "onRemoveCardFromBattle",cardId)
 end
 
-function battleOneRound(bf)
+function battleOneRoundInternal(bf)
+	--把temp 放到战斗区
+	mTeam.putTempCardToBattle(bf.team1)
+	mTeam.putTempCardToBattle(bf.team2)
+	
 	battleMgr.battleStart(bf)
+
+	if bf.status == battleType.FIELD_STATUS.END then
+		return
+	end	
 	
 	bf.status=battleType.FIELD_STATUS.BATTLEING
 	bf.roundNum = bf.roundNum + 1
 	if bf.roundNum> MAX_COUNT then
 		battleMgr.battleEnd(bf)
 	end
-	--把一张卡片放到canditate
-	mTeam.addOneToCanditate(bf.team1)
-	mTeam.addOneToCanditate(bf.team2)
 	--增加在canditate卡片的回合数
 	mTeam.addCanditateRoundNum(bf.team1)
 	mTeam.addCanditateRoundNum(bf.team2)
 	
+	--把一张卡片放到canditate
+	mTeam.addOneToCanditate(bf,bf.team1)
+	mTeam.addOneToCanditate(bf,bf.team2)
+	
 	mTeam.autoPutToBattle(bf.team2) --把卡片放到战斗区
 end
+function battleOneRound(sockId)
+	local char = mChar.getCharBySocket(sockId)
+	local bf=battleData.getBattleBf(char.data.battleId)
+	battleOneRoundInternal(bf)
+	local bfView={}
+	bfView.roundNum=bf.roundNum
+	bfView.enterBattleList=bf.enterBattleList[bf.roundNum-1]
+	bfView.playList=bf.playList[bf.roundNum-1]
+	bfView.status=bf.status
+	bfView.winnerId=bf.winnerId
+	mSys.callClient(sockId, "onBattleOneRound",bfView)
+end
 
-function battleAuto(bf)
+function battleAuto(sockId)
+	local char = mChar.getCharBySocket(sockId)
+	local bf=battleData.getBattleBf(char.data.battleId)
 	while true do
 		
 		--把卡片放到战斗区
@@ -96,7 +136,7 @@ function battleAuto(bf)
 		
 	
 		if bf.status~=battleType.FIELD_STATUS.END then
-			battleOneRound(bf)
+			battleOneRoundInternal(bf)
 		else	
 			break
 		end
@@ -109,6 +149,12 @@ function battleAuto(bf)
 			break
 		end	
 	end
-	return bf
+	local bfView={}
+	bfView.enterBattleList=bf.enterBattleList
+	bfView.playList=bf.playList
+	bfView.status=bf.status
+	bfView.winnerId=bf.winnerId
+	mSys.callClient(sockId, "onBattleAuto",bfView)
+	--return bf
 end
 

@@ -200,13 +200,20 @@ int C_escapedstr(lua_State* L)
 	if (check_args(L, 1) == false) {
 		return 0;
 	}
-	size_t len;
-	const char *json_str = lua_tolstring(L,1,&len);
-	char *new_str = (char*)malloc(len*2);
-	size_t new_len = mysql_real_escape_string(pmysql,new_str,json_str,len);
-	lua_pushlstring(L,new_str,new_len);
-	free(new_str);
-	return 1;
+
+	if (pmysql != NULL) {
+		size_t len;
+		const char *json_str = lua_tolstring(L,1,&len);
+		char *new_str = (char*)malloc(len*2);
+		size_t new_len = mysql_real_escape_string(pmysql,new_str,json_str,len);
+		lua_pushlstring(L,new_str,new_len);
+		free(new_str);
+		return 1;
+	} else {
+		MYLOG(3, "mysql not connected");
+		lua_pushnil(L);
+		return 1;
+	}
 }
 
 int C_log(lua_State* L)

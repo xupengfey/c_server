@@ -27,7 +27,7 @@ function inintCardByDead(card)
 end
 
 ----把一张卡片放到canditate
-function addOneToCanditate(team)
+function addOneToCanditate(bf,team)
 	if #team.cardList>0 then
 		local rd=math.random(1,#team.cardList)
 		local card=team.cardList[rd]
@@ -36,6 +36,22 @@ function addOneToCanditate(team)
 		card.isNew=true --新上场的卡牌
 		table.insert(team.canditate,card)
 		table.remove(team.cardList,rd)	
+		
+		local viewCard={}
+		viewCard.id=card.id
+		viewCard.tid=card.tid
+		viewCard.tid=card.tid
+		viewCard.teamId=card.teamId
+		viewCard.atk=card.atk
+		viewCard.hp=card.hp
+		local teamId=team.hero.teamId
+		if bf.enterBattleList[bf.roundNum]==nil then
+			bf.enterBattleList[bf.roundNum]={}
+		end
+		if bf.enterBattleList[bf.roundNum][teamId]==nil then
+			bf.enterBattleList[bf.roundNum][teamId]={}
+		end
+		table.insert(bf.enterBattleList[bf.roundNum][teamId], viewCard)
 	end	
 end
 
@@ -93,7 +109,7 @@ function initPlayerTeam(charData,teamId)
 		v.teamId=teamId
 		initCard(v)		
 	end	
-	addOneToCanditate(team)
+	--addOneToCanditate(1,team)
 	return team
 end
 

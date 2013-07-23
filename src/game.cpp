@@ -364,7 +364,7 @@ void rpcHandler(uv_work_t *req) {
 
 
 void after_send(uv_write_t* req, int status){
-	MYLOG(INFO) << "after_send status:" << status << endl;
+	//MYLOG(INFO) << "after_send status:" << status << endl;
 	if (status == 0 && req) {
 		SendDataBuff* psend_data_buf =  (SendDataBuff*)req->data;
 		psend_data_buf->num --;
@@ -385,7 +385,7 @@ void sendHandler(uv_async_t *handle, int status ) {
 		uv_mutex_lock(&send_queue_mutex);
 		 if (send_queue.size() == 0) {
 		 	uv_mutex_unlock(&send_queue_mutex);
-		 	return;
+		 	continue;
 		 }
 		SendQueBuff* send_buf = send_queue.front();
 		send_queue.pop();
@@ -395,7 +395,7 @@ void sendHandler(uv_async_t *handle, int status ) {
 		char *dest = NULL;
 		int ret = 0;
 		if (IS_COMPRESS(global_protocol)) {
-			MYLOG(INFO) << "compress" << endl;
+			//MYLOG(INFO) << "compress" << endl;
 			dest_len = compressBound((uLong)send_buf->data_len);
 			dest = (char *)malloc(dest_len+sizeof(uLong));
 			*(uLong*)dest = send_buf->data_len;
@@ -412,7 +412,7 @@ void sendHandler(uv_async_t *handle, int status ) {
 		}
 
 		if (IS_ENCRYPT(global_protocol)) {
-			MYLOG(INFO) << "encrypt" << endl;
+			//MYLOG(INFO) << "encrypt" << endl;
 			iencrypt(dest, dest_len+sizeof(uLong));
 		}
 

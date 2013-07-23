@@ -8,6 +8,8 @@ local heroSkill  = require "logic.battle.heroSkill"
 local passive  = require "logic.battle.passive"
 local mSelect =require "logic.battle.select"
 local mView =require "logic.battle.view"
+local mBattleData=require("logic.battle.data")
+
 module("logic.battle.battle")
 
 
@@ -354,13 +356,24 @@ function isBattleEnd(bf)
 end
 
 function battleEnd(bf)
+	if bf.status == battleType.FIELD_STATUS.END then
+		return
+	end	
 	bf.status=battleType.FIELD_STATUS.END
 	if isTeamDefeated(bf.team1) then
+		bf.winnerId=bf.team1.id
 		bf.team2.status=battleType.TEAM_STATUS.WIN	
 		bf.team1.status=battleType.TEAM_STATUS.LOSE	
 	end
 	if isTeamDefeated(bf.team2) then
+		bf.winnerId=bf.team2.id
 		bf.team1.status=battleType.TEAM_STATUS.WIN
 		bf.team2.status=battleType.TEAM_STATUS.LOSE			
 	end	
+	local battle = mBattleData.getBattle(bf.id)
+	local callback = battle.callback
+
+	callback(bf, battle.params)
+
+	
 end

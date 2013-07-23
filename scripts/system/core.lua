@@ -1,33 +1,35 @@
 local mTimer = require "system.timer"
+require "util.table"
+require "util.string"
 
 INFO = 0
 WARNING = 1
 ERROR = 2
 
 
-printTable = function(root)
-	if type(root) ~= "table" then
-		return
-	end
-	local cache = {  [root] = "." }
-	local function _dump(t,space,name)
-		local temp = {}
-		for k,v in pairs(t) do
-			local key = tostring(k)
-			if cache[v] then
-				table.insert(temp,"+" .. key .. " {" .. cache[v].."}")
-			elseif type(v) == "table" then
-				local new_key = name .. "." .. key
-				cache[v] = new_key
-				table.insert(temp,"+" .. key .. _dump(v,space .. (next(t,k) and "|" or " " ).. string.rep(" ",#key),new_key))
-			else
-				table.insert(temp,"+" .. key .. " [" .. tostring(v).."]")
-			end
-		end
-		return table.concat(temp,"\n"..space)
-	end
-	print(_dump(root, "",""))
-end
+-- printTable = function(root)
+-- 	if type(root) ~= "table" then
+-- 		return
+-- 	end
+-- 	local cache = {  [root] = "." }
+-- 	local function _dump(t,space,name)
+-- 		local temp = {}
+-- 		for k,v in pairs(t) do
+-- 			local key = tostring(k)
+-- 			if cache[v] then
+-- 				table.insert(temp,"+" .. key .. " {" .. cache[v].."}")
+-- 			elseif type(v) == "table" then
+-- 				local new_key = name .. "." .. key
+-- 				cache[v] = new_key
+-- 				table.insert(temp,"+" .. key .. _dump(v,space .. (next(t,k) and "|" or " " ).. string.rep(" ",#key),new_key))
+-- 			else
+-- 				table.insert(temp,"+" .. key .. " [" .. tostring(v).."]")
+-- 			end
+-- 		end
+-- 		return table.concat(temp,"\n"..space)
+-- 	end
+-- 	print(_dump(root, "",""))
+-- end
 -- L_onTick L_onRPC L_onMysql
 --local json = require "cjson"
 
@@ -38,9 +40,9 @@ cbFunc = {}
 
 function L_onError(message)
 	C_log(ERROR,"[Error]+++++++++++++++++++++++++++++++++++++++")
+	C_log(ERROR,message)
 	C_log(ERROR,debug.traceback())
 	C_log(ERROR,"[Error]---------------------------------------\n")
-
 end
 
 function L_onTick( ... )
@@ -73,6 +75,8 @@ function L_onConnected( sockId)
 end
 function L_onClose( sockId )
 	print("L_onClose",sockId)
+	local mLogin = package.loaded["logic.login"]
+	mLogin.logout(sockId)
 end
 function L_onConnectedNC( sockId)
 	print("L_onConnectedNC",sockId)

@@ -51,6 +51,7 @@ function onQueryLogin( ret,sockId,accName )
 
   assert(#ret == 1)
   local char = {data=ret[1]}
+  char.sockId = sockId
   mChar.loginData(char)
   -- printTable(char)
   mSys.callClient(sockId, "onLogin", ret[1])
