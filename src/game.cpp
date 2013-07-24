@@ -380,11 +380,12 @@ void sendHandler(uv_async_t *handle, int status ) {
 	 // uv_run(tcp_loop, UV_RUN_NOWAIT);
 	//uv_run(tcp_loop, UV_RUN_ONCE);
 	while (true) {
-		
+		tickHandler(NULL, 0);
 		// uv_sem_wait(&send_queue_sem);
 		uv_mutex_lock(&send_queue_mutex);
 		 if (send_queue.size() == 0) {
 		 	uv_mutex_unlock(&send_queue_mutex);
+			uv_sleep(5);
 		 	continue;
 		 }
 		SendQueBuff* send_buf = send_queue.front();

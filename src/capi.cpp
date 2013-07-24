@@ -210,7 +210,7 @@ int C_escapedstr(lua_State* L)
 		free(new_str);
 		return 1;
 	} else {
-		MYLOG(3, "mysql not connected");
+		MYLOG(ERROR) << "mysql not connected" << endl;
 		lua_pushnil(L);
 		return 1;
 	}
